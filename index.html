@@ -286,9 +286,19 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
       </div>
       <div class="omst" style="margin-bottom:.65rem">Immobili selezionati</div>
       <div class="cil" id="cil"></div>
+      <div class="omsec" style="margin-top:1.1rem">
+        <div class="omst">Slot calendario — Introduzione cliente</div>
+        <div style="display:flex;gap:.4rem;margin-bottom:.55rem;flex-wrap:wrap">
+          <button class="ifb" id="cal-1h" onclick="setCalSlot('1h',this)" style="padding:.4rem .8rem">⏱ Tra 1 ora</button>
+          <button class="ifb" id="cal-3h" onclick="setCalSlot('3h',this)" style="padding:.4rem .8rem">⏱ Tra 3 ore</button>
+          <button class="ifb" id="cal-custom" onclick="setCalSlot('custom',this)" style="padding:.4rem .8rem">📅 Scegli data/ora</button>
+        </div>
+        <input type="datetime-local" id="cal-datetime" style="display:none;width:100%;padding:.55rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;background:var(--bg);color:var(--text);margin-bottom:.5rem">
+        <div id="cal-preview" style="font-size:.78rem;color:var(--muted)"></div>
+      </div>
       <div class="cf2">
         <button class="bprev" onclick="showPrev()">👁 Anteprima</button>
-        <button class="bgm" id="bgm" onclick="prepGmail()">✉ Prepara per Gmail</button>
+        <button class="bgm" id="bgm" onclick="prepGmail()">✉ Salva bozza + Evento calendario</button>
       </div>
       <div class="gst" id="gst"></div>
       <textarea class="ctxt" id="ctxt" readonly></textarea>
@@ -497,6 +507,43 @@ window.exportExcel=function(){
   XLSX.writeFile(wb,fname);
 };
 
+
+// ── CALENDAR SLOT PICKER ──
+let calSlotISO=null; // {start, end} ISO strings
+function fmtLocalInput(d){
+  const pad=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+window.setCalSlot=function(mode,btn){
+  document.querySelectorAll('#cal-1h,#cal-3h,#cal-custom').forEach(b=>b.classList.remove('hp'));
+  btn.classList.add('hp');
+  const dtInput=document.getElementById('cal-datetime');
+  const preview=document.getElementById('cal-preview');
+  let start;
+  if(mode==='1h'){start=new Date(Date.now()+60*60*1000);dtInput.style.display='none'}
+  else if(mode==='3h'){start=new Date(Date.now()+3*60*60*1000);dtInput.style.display='none'}
+  else{
+    dtInput.style.display='';
+    if(!dtInput.value){
+      const def=new Date(Date.now()+60*60*1000);
+      dtInput.value=fmtLocalInput(def);
+    }
+    start=new Date(dtInput.value);
+  }
+  updateCalPreview(start,mode,dtInput);
+};
+function updateCalPreview(start,mode,dtInput){
+  const end=new Date(start.getTime()+30*60*1000);
+  calSlotISO={start:start.toISOString(),end:end.toISOString(),mode};
+  const preview=document.getElementById('cal-preview');
+  const opts={weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'};
+  preview.textContent='📅 '+start.toLocaleString('it-IT',opts)+' — '+end.toLocaleString('it-IT',{hour:'2-digit',minute:'2-digit'})+' (30 min)';
+}
+document.getElementById('cal-datetime').addEventListener('change',function(){
+  const start=new Date(this.value);
+  if(!isNaN(start.getTime()))updateCalPreview(start,'custom',this);
+});
+
 function compressImg(base64,maxW,quality){
   return new Promise(resolve=>{
     try{
@@ -560,8 +607,30 @@ window.prepGmail=async function(){
       body+='</ul>'+imgHtml+'</div>';
     }
     body+='<div style="margin-top:26px;padding-top:12px;border-top:2px solid #1A3A2A;color:#999;font-size:11px">World Capital — Real Estate Logistics</div></div>';
-    gst.textContent='⏳ Invio a Gmail…';
-    const payload={to:toFinal,subject,body_html:body};
+
+    // Build calendar event data
+    if(!calSlotISO){
+      // default fallback: 1 hour from now if user never touched the picker
+      const start=new Date(Date.now()+60*60*1000);
+      const end=new Date(start.getTime()+30*60*1000);
+      calSlotISO={start:start.toISOString(),end:end.toISOString()};
+    }
+    const clienteNome=cli||'Cliente';
+    const eventTitle='Introduzione '+clienteNome;
+    let eventDesc='';
+    items.forEach(item=>{
+      const rif=item.dataset.rif;const d=RAW.find(x=>x.rif===rif);if(!d)return;
+      eventDesc+=(d.comune||'—')+(d.provincia?' ('+d.provincia+')':'')+' — '+(d.sc_coperta?d.sc_coperta.toLocaleString('it-IT')+' mq':'—')+' — Sviluppatore: '+(d.sviluppatore||'—')+' — Referente: '+(d.referente||'—')+'\n';
+    });
+
+    gst.textContent='⏳ Invio a Gmail e Calendar…';
+    const payload={
+      to:toFinal,subject,body_html:body,
+      event_title:eventTitle,
+      event_description:eventDesc,
+      event_start:calSlotISO.start,
+      event_end:calSlotISO.end
+    };
     const resp=await fetch('https://hook.eu1.make.com/c7f5g3qhvnax85a0nujsf337rne42vpt',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
