@@ -289,8 +289,9 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
       <div class="omsec" style="margin-top:1.1rem">
         <div class="omst">Slot calendario — Introduzione cliente</div>
         <div style="display:flex;gap:.4rem;margin-bottom:.55rem;flex-wrap:wrap">
+          <button class="ifb" id="cal-15m" onclick="setCalSlot('15m',this)" style="padding:.4rem .8rem">⏱ Tra 15 minuti</button>
           <button class="ifb" id="cal-1h" onclick="setCalSlot('1h',this)" style="padding:.4rem .8rem">⏱ Tra 1 ora</button>
-          <button class="ifb" id="cal-3h" onclick="setCalSlot('3h',this)" style="padding:.4rem .8rem">⏱ Tra 3 ore</button>
+          <button class="ifb" id="cal-tom9" onclick="setCalSlot('tom9',this)" style="padding:.4rem .8rem">🌅 Domani alle 9:00</button>
           <button class="ifb" id="cal-custom" onclick="setCalSlot('custom',this)" style="padding:.4rem .8rem">📅 Scegli data/ora</button>
         </div>
         <input type="datetime-local" id="cal-datetime" style="display:none;width:100%;padding:.55rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;background:var(--bg);color:var(--text);margin-bottom:.5rem">
@@ -528,30 +529,33 @@ function loadCalIframe(dateObj){
   wrap.style.display='';
 }
 window.setCalSlot=function(mode,btn){
-  document.querySelectorAll('#cal-1h,#cal-3h,#cal-custom').forEach(b=>b.classList.remove('hp'));
+  document.querySelectorAll('#cal-15m,#cal-1h,#cal-tom9,#cal-custom').forEach(b=>b.classList.remove('hp'));
   btn.classList.add('hp');
   const dtInput=document.getElementById('cal-datetime');
-  const wrap=document.getElementById('cal-iframe-wrap');
   let start;
-  if(mode==='1h'){
+  if(mode==='15m'){
+    start=new Date(Date.now()+15*60*1000);
+    dtInput.style.display='none';
+  }
+  else if(mode==='1h'){
     start=new Date(Date.now()+60*60*1000);
     dtInput.style.display='none';
-    wrap.style.display='none';
   }
-  else if(mode==='3h'){
-    start=new Date(Date.now()+3*60*60*1000);
+  else if(mode==='tom9'){
+    start=new Date();
+    start.setDate(start.getDate()+1);
+    start.setHours(9,0,0,0);
     dtInput.style.display='none';
-    wrap.style.display='none';
   }
-  else{
+  else{ // custom
     dtInput.style.display='';
     if(!dtInput.value){
       const def=new Date(Date.now()+60*60*1000);
       dtInput.value=fmtLocalInput(def);
     }
     start=new Date(dtInput.value);
-    loadCalIframe(start);
   }
+  loadCalIframe(start);
   updateCalPreview(start,mode,dtInput);
 };
 function updateCalPreview(start,mode,dtInput){
