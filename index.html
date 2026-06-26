@@ -496,6 +496,25 @@ window.exportExcel=function(){
   const fname='WCG_immobili_selezionati_'+new Date().toISOString().slice(0,10)+'.xlsx';
   XLSX.writeFile(wb,fname);
 };
+
+function compressImg(base64,maxW,quality){
+  return new Promise(resolve=>{
+    try{
+      const img=new Image();
+      img.onload=function(){
+        const canvas=document.createElement('canvas');
+        let w=img.width,h=img.height;
+        if(w>maxW){h=Math.round(h*maxW/w);w=maxW}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.onerror=function(){resolve(null)};
+      img.src=base64;
+    }catch(e){resolve(null)}
+  });
+}
+
 window.prepGmail=async function(){
   const gst=document.getElementById('gst');
   const btn=document.getElementById('bgm');
@@ -505,7 +524,6 @@ window.prepGmail=async function(){
     const toEl=document.getElementById('c-to');
     const to=(toEl&&toEl.value.trim())||(window._cto&&window._cto.trim())||'';
     const toFinal=to||'paolo.compagnino@worldcapital.it';
-    console.log('to field value:', to, 'toFinal:', toFinal);
     const cli=document.getElementById('c-cli').value.trim();
     const intro=document.getElementById('cintro').innerHTML.trim();
     const items=[...document.querySelectorAll('.ci')];
@@ -513,11 +531,24 @@ window.prepGmail=async function(){
     const subject=cli?('Proposta immobili logistici – '+cli):'Proposta immobili logistici';
     let body='<div style="font-family:Arial,sans-serif;max-width:600px;color:#333;font-size:13px;line-height:1.6">';
     if(intro)body+='<div style="margin-bottom:24px">'+intro+'</div>';
+    let totalImgSize=0;
+    const MAX_TOTAL_IMG=3500000; // ~3.5MB budget for all images combined (base64 chars)
     for(const item of items){
       const rif=item.dataset.rif;
       const d=RAW.find(x=>x.rif===rif);
       if(!d)continue;
-      const hp=!!(gpl(rif)||cpMap[rif]);
+      const pl=gpl(rif)||cpMap[rif]||null;
+      let imgHtml='';
+      if(pl&&pl.startsWith('data:image')){
+        gst.textContent='⏳ Comprimo planimetria '+(d.comune||'')+'…';
+        let compressed=await compressImg(pl,700,0.55);
+        if(compressed&&(totalImgSize+compressed.length)<MAX_TOTAL_IMG){
+          totalImgSize+=compressed.length;
+          imgHtml='<p style="margin:10px 0 5px"><b>Planimetria:</b></p><img src="'+compressed+'" style="max-width:520px;width:100%;border-radius:5px;display:block">';
+        }else{
+          imgHtml='<p style="font-size:12px;color:#888;font-style:italic">[Planimetria disponibile — allegare manualmente]</p>';
+        }
+      }
       body+='<div style="margin-bottom:30px;padding-bottom:30px;border-bottom:1px solid #e5e5e5">';
       body+='<h2 style="font-family:Georgia,serif;font-size:18px;color:#1A3A2A;margin:0 0 10px">'+(d.comune||'—')+(d.provincia?' – '+d.provincia:'')+'</h2>';
       body+='<ul style="list-style:disc;padding-left:18px;margin:0 0 10px;font-size:13px;line-height:1.9;color:#333">';
@@ -526,11 +557,10 @@ window.prepGmail=async function(){
       if(d.asking_rent)body+='<li>Asking rent: <b>'+d.asking_rent+' €/mq/anno</b></li>';
       body+='<li>Disponibilità: <b>'+cLbl(d)+'</b></li>';
       if(d.frazionabile)body+='<li>Note: '+d.frazionabile+'</li>';
-      body+='</ul>';
-      if(hp)body+='<p style="font-size:12px;color:#888;font-style:italic">[Planimetria disponibile — da allegare manualmente]</p>';
-      body+='</div>';
+      body+='</ul>'+imgHtml+'</div>';
     }
     body+='<div style="margin-top:26px;padding-top:12px;border-top:2px solid #1A3A2A;color:#999;font-size:11px">World Capital — Real Estate Logistics</div></div>';
+    gst.textContent='⏳ Invio a Gmail…';
     const payload={to:toFinal,subject,body_html:body};
     const resp=await fetch('https://hook.eu1.make.com/c7f5g3qhvnax85a0nujsf337rne42vpt',{
       method:'POST',
@@ -552,7 +582,6 @@ window.prepGmail=async function(){
     btn.textContent='✉ Salva bozza in Gmail';btn.disabled=false;btn.style.background='#EA4335';
   }
 }
-
 document.querySelectorAll('.ov').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.ov.open').forEach(o=>o.classList.remove('open'))});
 initMap();initF();render();
