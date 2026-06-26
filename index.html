@@ -294,6 +294,9 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
           <button class="ifb" id="cal-custom" onclick="setCalSlot('custom',this)" style="padding:.4rem .8rem">📅 Scegli data/ora</button>
         </div>
         <input type="datetime-local" id="cal-datetime" style="display:none;width:100%;padding:.55rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;background:var(--bg);color:var(--text);margin-bottom:.5rem">
+        <div id="cal-iframe-wrap" style="display:none;margin-bottom:.6rem;border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+          <iframe id="cal-iframe" src="" style="width:100%;height:420px;border:none;display:block" frameborder="0" scrolling="no"></iframe>
+        </div>
         <div id="cal-preview" style="font-size:.78rem;color:var(--muted)"></div>
       </div>
       <div class="cf2">
@@ -514,14 +517,32 @@ function fmtLocalInput(d){
   const pad=n=>String(n).padStart(2,'0');
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
 }
+const CAL_ID='paolo.compagnino%40worldcapital.it';
+function loadCalIframe(dateObj){
+  const iframe=document.getElementById('cal-iframe');
+  const wrap=document.getElementById('cal-iframe-wrap');
+  const y=dateObj.getFullYear(),m=String(dateObj.getMonth()+1).padStart(2,'0'),d=String(dateObj.getDate()).padStart(2,'0');
+  const dateStr=y+m+d;
+  const src='https://calendar.google.com/calendar/embed?src='+CAL_ID+'&mode=WEEK&dates='+dateStr+'%2F'+dateStr+'&ctz=Europe%2FRome&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&showTz=0&height=420';
+  iframe.src=src;
+  wrap.style.display='';
+}
 window.setCalSlot=function(mode,btn){
   document.querySelectorAll('#cal-1h,#cal-3h,#cal-custom').forEach(b=>b.classList.remove('hp'));
   btn.classList.add('hp');
   const dtInput=document.getElementById('cal-datetime');
-  const preview=document.getElementById('cal-preview');
+  const wrap=document.getElementById('cal-iframe-wrap');
   let start;
-  if(mode==='1h'){start=new Date(Date.now()+60*60*1000);dtInput.style.display='none'}
-  else if(mode==='3h'){start=new Date(Date.now()+3*60*60*1000);dtInput.style.display='none'}
+  if(mode==='1h'){
+    start=new Date(Date.now()+60*60*1000);
+    dtInput.style.display='none';
+    wrap.style.display='none';
+  }
+  else if(mode==='3h'){
+    start=new Date(Date.now()+3*60*60*1000);
+    dtInput.style.display='none';
+    wrap.style.display='none';
+  }
   else{
     dtInput.style.display='';
     if(!dtInput.value){
@@ -529,6 +550,7 @@ window.setCalSlot=function(mode,btn){
       dtInput.value=fmtLocalInput(def);
     }
     start=new Date(dtInput.value);
+    loadCalIframe(start);
   }
   updateCalPreview(start,mode,dtInput);
 };
@@ -541,7 +563,10 @@ function updateCalPreview(start,mode,dtInput){
 }
 document.getElementById('cal-datetime').addEventListener('change',function(){
   const start=new Date(this.value);
-  if(!isNaN(start.getTime()))updateCalPreview(start,'custom',this);
+  if(!isNaN(start.getTime())){
+    updateCalPreview(start,'custom',this);
+    loadCalIframe(start);
+  }
 });
 
 function compressImg(base64,maxW,quality){
