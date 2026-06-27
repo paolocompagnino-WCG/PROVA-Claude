@@ -295,8 +295,10 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
           <button class="ifb" id="cal-custom" onclick="setCalSlot('custom',this)" style="padding:.4rem .8rem">📅 Scegli data/ora</button>
         </div>
         <input type="datetime-local" id="cal-datetime" style="display:none;width:100%;padding:.55rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;background:var(--bg);color:var(--text);margin-bottom:.5rem">
-        <div id="cal-iframe-wrap" style="display:none;margin-bottom:.6rem;border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
-          <iframe id="cal-iframe" src="" style="width:100%;height:420px;border:none;display:block" frameborder="0" scrolling="no"></iframe>
+        <div id="cal-iframe-wrap" style="display:none;margin-bottom:.6rem;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)">
+          <div id="cal-mini-header" style="padding:.5rem .7rem;font-size:.78rem;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);text-align:center"></div>
+          <div id="cal-mini-grid" style="max-height:320px;overflow-y:auto;padding:.5rem"></div>
+          <div id="cal-mini-loading" style="padding:1rem;text-align:center;font-size:.78rem;color:var(--muted);display:none">⏳ Carico impegni…</div>
         </div>
         <div id="cal-preview" style="font-size:.78rem;color:var(--muted)"></div>
       </div>
@@ -518,16 +520,93 @@ function fmtLocalInput(d){
   const pad=n=>String(n).padStart(2,'0');
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
 }
-const CAL_ID='paolo.compagnino%40worldcapital.it';
-function loadCalIframe(dateObj){
-  const iframe=document.getElementById('cal-iframe');
-  const wrap=document.getElementById('cal-iframe-wrap');
-  const y=dateObj.getFullYear(),m=String(dateObj.getMonth()+1).padStart(2,'0'),d=String(dateObj.getDate()).padStart(2,'0');
-  const dateStr=y+m+d;
-  const src='https://calendar.google.com/calendar/embed?src='+CAL_ID+'&mode=WEEK&dates='+dateStr+'%2F'+dateStr+'&ctz=Europe%2FRome&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&showTz=0&height=420';
-  iframe.src=src;
-  wrap.style.display='';
+const CAL_WEBHOOK='https://hook.eu1.make.com/3knvf6pf6iqpkutlk72x4es8jboia78y';
+let calEventsCache=null;
+let calEventsCacheTime=0;
+
+async function fetchCalEvents(){
+  const now=Date.now();
+  if(calEventsCache&&(now-calEventsCacheTime)<5*60*1000)return calEventsCache; // 5 min cache
+  try{
+    const resp=await fetch(CAL_WEBHOOK,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'read'})
+    });
+    const data=await resp.json();
+    // Make may wrap the bundle differently - try common shapes
+    let events=[];
+    if(Array.isArray(data))events=data;
+    else if(data.events&&Array.isArray(data.events))events=data.events;
+    else if(data.items&&Array.isArray(data.items))events=data.items;
+    else events=[data]; // single event fallback
+    calEventsCache=events;
+    calEventsCacheTime=now;
+    return events;
+  }catch(e){
+    console.error('Errore lettura calendario:',e);
+    return [];
+  }
 }
+
+function parseEventTimes(ev){
+  // Try multiple possible field shapes from Make's Calendar module
+  const startRaw=ev.start?.dateTime||ev.start||ev.startDate||ev.Start;
+  const endRaw=ev.end?.dateTime||ev.end||ev.endDate||ev.End;
+  const title=ev.summary||ev.title||ev.Summary||'(senza titolo)';
+  const start=startRaw?new Date(startRaw):null;
+  const end=endRaw?new Date(endRaw):null;
+  return{start,end,title};
+}
+
+async function loadCalIframe(dateObj){
+  const wrap=document.getElementById('cal-iframe-wrap');
+  const grid=document.getElementById('cal-mini-grid');
+  const header=document.getElementById('cal-mini-header');
+  const loading=document.getElementById('cal-mini-loading');
+  wrap.style.display='';
+  loading.style.display='';
+  grid.innerHTML='';
+
+  const events=await fetchCalEvents();
+  loading.style.display='none';
+
+  // Build day window: show selected day, 7am-20h, 30-min slots
+  const dayStart=new Date(dateObj);dayStart.setHours(7,0,0,0);
+  const dayEnd=new Date(dateObj);dayEnd.setHours(20,0,0,0);
+
+  header.textContent=dateObj.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
+
+  const parsedEvents=events.map(parseEventTimes).filter(e=>e.start&&e.end);
+
+  let html='';
+  for(let t=new Date(dayStart);t<dayEnd;t=new Date(t.getTime()+30*60*1000)){
+    const slotEnd=new Date(t.getTime()+30*60*1000);
+    const overlapping=parsedEvents.find(e=>e.start<slotEnd&&e.end>t);
+    const timeLabel=t.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+    const isSelected=calSlotISO&&new Date(calSlotISO.start).getTime()===t.getTime();
+    if(overlapping){
+      html+='<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:#EEE;border-radius:6px;margin-bottom:.25rem;font-size:.76rem;color:#888">'+
+        '<span style="font-weight:600;min-width:42px">'+timeLabel+'</span>'+
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🔒 '+overlapping.title+'</span></div>';
+    }else{
+      html+='<div onclick="pickSlot(\\''+t.toISOString()+'\\')" style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:'+(isSelected?'var(--accent)':'var(--bg)')+';border-radius:6px;margin-bottom:.25rem;font-size:.76rem;color:'+(isSelected?'#fff':'var(--text)')+';cursor:pointer;border:1px solid '+(isSelected?'var(--accent)':'var(--border)')+'" onmouseover="this.style.borderColor=\\'var(--accent)\\'" onmouseout="this.style.borderColor=\\''+(isSelected?'var(--accent)':'var(--border)')+'\\'">'+
+        '<span style="font-weight:600;min-width:42px">'+timeLabel+'</span>'+
+        '<span>✓ Libero</span></div>';
+    }
+  }
+  grid.innerHTML=html;
+}
+
+window.pickSlot=function(isoStr){
+  const start=new Date(isoStr);
+  const dtInput=document.getElementById('cal-datetime');
+  dtInput.value=fmtLocalInput(start);
+  dtInput.style.display='';
+  updateCalPreview(start,'custom',dtInput);
+  loadCalIframe(start); // redraw to show selection highlight
+};
+
 window.setCalSlot=function(mode,btn){
   document.querySelectorAll('#cal-15m,#cal-1h,#cal-tom9,#cal-custom').forEach(b=>b.classList.remove('hp'));
   btn.classList.add('hp');
@@ -654,6 +733,7 @@ window.prepGmail=async function(){
 
     gst.textContent='⏳ Invio a Gmail e Calendar…';
     const payload={
+      action:'create',
       to:toFinal,subject,body_html:body,
       event_title:eventTitle,
       event_description:eventDesc,
