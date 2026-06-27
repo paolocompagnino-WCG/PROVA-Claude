@@ -571,41 +571,53 @@ async function loadCalIframe(dateObj){
   const events=await fetchCalEvents();
   loading.style.display='none';
 
-  // Build day window: show selected day, 7am-20h, 30-min slots
   const dayStart=new Date(dateObj);dayStart.setHours(7,0,0,0);
   const dayEnd=new Date(dateObj);dayEnd.setHours(20,0,0,0);
 
   header.textContent=dateObj.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
 
-  const parsedEvents=events.map(parseEventTimes).filter(e=>e.start&&e.end);
+  const parsedEvents=events.map(parseEventTimes).filter(function(e){return e.start&&e.end});
 
-  let html='';
+  grid.innerHTML='';
   for(let t=new Date(dayStart);t<dayEnd;t=new Date(t.getTime()+30*60*1000)){
     const slotEnd=new Date(t.getTime()+30*60*1000);
-    const overlapping=parsedEvents.find(e=>e.start<slotEnd&&e.end>t);
+    const overlapping=parsedEvents.find(function(e){return e.start<slotEnd&&e.end>t});
     const timeLabel=t.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
     const isSelected=calSlotISO&&new Date(calSlotISO.start).getTime()===t.getTime();
+    const row=document.createElement('div');
+    row.style.display='flex';
+    row.style.alignItems='center';
+    row.style.gap='.5rem';
+    row.style.padding='.4rem .5rem';
+    row.style.borderRadius='6px';
+    row.style.marginBottom='.25rem';
+    row.style.fontSize='.76rem';
     if(overlapping){
-      html+='<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:#EEE;border-radius:6px;margin-bottom:.25rem;font-size:.76rem;color:#888">'+
-        '<span style="font-weight:600;min-width:42px">'+timeLabel+'</span>'+
-        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🔒 '+overlapping.title+'</span></div>';
+      row.style.background='#EEE';
+      row.style.color='#888';
+      row.innerHTML='<span style="font-weight:600;min-width:42px">'+timeLabel+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🔒 '+overlapping.title+'</span>';
     }else{
-      html+='<div onclick="pickSlot(\\''+t.toISOString()+'\\')" style="display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:'+(isSelected?'var(--accent)':'var(--bg)')+';border-radius:6px;margin-bottom:.25rem;font-size:.76rem;color:'+(isSelected?'#fff':'var(--text)')+';cursor:pointer;border:1px solid '+(isSelected?'var(--accent)':'var(--border)')+'" onmouseover="this.style.borderColor=\\'var(--accent)\\'" onmouseout="this.style.borderColor=\\''+(isSelected?'var(--accent)':'var(--border)')+'\\'">'+
-        '<span style="font-weight:600;min-width:42px">'+timeLabel+'</span>'+
-        '<span>✓ Libero</span></div>';
+      row.style.background=isSelected?'var(--accent)':'var(--bg)';
+      row.style.color=isSelected?'#fff':'var(--text)';
+      row.style.cursor='pointer';
+      row.style.border='1px solid '+(isSelected?'var(--accent)':'var(--border)');
+      row.innerHTML='<span style="font-weight:600;min-width:42px">'+timeLabel+'</span><span>✓ Libero</span>';
+      const slotTime=new Date(t);
+      row.addEventListener('click',function(){pickSlot(slotTime)});
     }
+    grid.appendChild(row);
   }
-  grid.innerHTML=html;
 }
 
-window.pickSlot=function(isoStr){
-  const start=new Date(isoStr);
+window.pickSlot=function(dateObj){
+  const start=new Date(dateObj);
   const dtInput=document.getElementById('cal-datetime');
   dtInput.value=fmtLocalInput(start);
   dtInput.style.display='';
   updateCalPreview(start,'custom',dtInput);
-  loadCalIframe(start); // redraw to show selection highlight
+  loadCalIframe(start);
 };
+
 
 window.setCalSlot=function(mode,btn){
   document.querySelectorAll('#cal-15m,#cal-1h,#cal-tom9,#cal-custom').forEach(b=>b.classList.remove('hp'));
