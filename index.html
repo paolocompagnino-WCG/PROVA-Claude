@@ -555,9 +555,9 @@ async function fetchCalEvents(){
 }
 
 function parseEventTimes(ev){
-  // Try multiple possible field shapes from Make's Calendar module
-  const startRaw=ev.start?.dateTime||ev.start||ev.startDate||ev.Start;
-  const endRaw=ev.end?.dateTime||ev.end||ev.endDate||ev.End;
+  // Make's Google Calendar module returns start/end as direct ISO strings
+  const startRaw=(typeof ev.start==='string')?ev.start:(ev.start&&ev.start.dateTime)||ev.startDate||ev.Start;
+  const endRaw=(typeof ev.end==='string')?ev.end:(ev.end&&ev.end.dateTime)||ev.endDate||ev.End;
   const title=ev.summary||ev.title||ev.Summary||'(senza titolo)';
   const start=startRaw?new Date(startRaw):null;
   const end=endRaw?new Date(endRaw):null;
