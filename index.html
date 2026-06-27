@@ -534,17 +534,27 @@ async function fetchCalEvents(){
       body:JSON.stringify({action:'read'})
     });
     const rawText=await resp.text();
-    console.log('RAW CALENDAR RESPONSE:',rawText);
-    let data;
-    try{data=JSON.parse(rawText)}catch(e){console.error('JSON parse failed, raw was:',rawText);return[]}
-    console.log('PARSED CALENDAR DATA:',data);
-    // Make may wrap the bundle differently - try common shapes
-    let events=[];
-    if(Array.isArray(data))events=data;
-    else if(data.events&&Array.isArray(data.events))events=data.events;
-    else if(data.items&&Array.isArray(data.items))events=data.items;
-    else events=[data]; // single event fallback
-    console.log('EVENTS ARRAY:',events);
+    // Table aggregator output pattern: "<end-date-string><start-date-string><summary>" repeated, no separators.
+    // Each date chunk looks like: "Mon Jun 29 2026 12:30:00 GMT+0000 (Coordinated Universal Time)"
+    // We split using a regex that captures pairs of these date strings followed by a title (until the next date string or end).
+    const dateRe=/[A-Za-z]{3} [A-Za-z]{3} \d{2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4} \([^)]+\)/g;
+    const matches=[...rawText.matchAll(dateRe)];
+    const events=[];
+    for(let i=0;i<matches.length;i+=2){
+      if(!matches[i+1])break;
+      const endStr=matches[i][0];
+      const startStr=matches[i+1][0];
+      const endIdx=matches[i].index+endStr.length;
+      const startIdx=matches[i+1].index;
+      const nextIdx=(matches[i+2])?matches[i+2].index:rawText.length;
+      const titleStart=matches[i+1].index+startStr.length;
+      const title=rawText.slice(titleStart,nextIdx).trim();
+      events.push({
+        end:new Date(endStr),
+        start:new Date(startStr),
+        summary:title||'(senza titolo)'
+      });
+    }
     calEventsCache=events;
     calEventsCacheTime=now;
     return events;
@@ -555,12 +565,10 @@ async function fetchCalEvents(){
 }
 
 function parseEventTimes(ev){
-  // Make's Google Calendar module returns start/end as direct ISO strings
-  const startRaw=(typeof ev.start==='string')?ev.start:(ev.start&&ev.start.dateTime)||ev.startDate||ev.Start;
-  const endRaw=(typeof ev.end==='string')?ev.end:(ev.end&&ev.end.dateTime)||ev.endDate||ev.End;
-  const title=ev.summary||ev.title||ev.Summary||'(senza titolo)';
-  const start=startRaw?new Date(startRaw):null;
-  const end=endRaw?new Date(endRaw):null;
+  // events from fetchCalEvents already have start/end as Date objects
+  const start=(ev.start instanceof Date)?ev.start:(ev.start?new Date(ev.start):null);
+  const end=(ev.end instanceof Date)?ev.end:(ev.end?new Date(ev.end):null);
+  const title=ev.summary||ev.title||'(senza titolo)';
   return{start,end,title};
 }
 
