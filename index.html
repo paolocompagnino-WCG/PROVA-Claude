@@ -492,15 +492,27 @@ window.openCompose=function(){
 function buildHtml(){
   const intro=document.getElementById('cintro').innerHTML.trim();
   const items=[...document.querySelectorAll('.ci')];
-  let body='';
-  items.forEach(item=>{
+  let body='<div style="font-family:Arial,sans-serif;max-width:600px;color:#333;font-size:13px;line-height:1.7">';
+  if(intro)body+='<div style="margin-bottom:18px">'+intro+'</div>';
+  items.forEach((item,idx)=>{
     const rif=item.dataset.rif;const d=RAW.find(x=>x.rif===rif);if(!d)return;
     const pl=gpl(rif)||cpMap[rif]||null;
-    const pi=pl&&pl.startsWith('data:image')?'<p style="margin:10px 0 5px"><b>Planimetria:</b></p><img src="'+pl+'" style="max-width:540px;width:100%;border-radius:5px;display:block">':'';
-    body+='<div style="margin-bottom:30px;padding-bottom:30px;border-bottom:1px solid #e5e5e5"><h2 style="font-family:Georgia,serif;font-size:18px;color:#1A3A2A;margin:0 0 10px">'+(d.comune||'—')+(d.provincia?' – '+d.provincia:'')+'</h2><ul style="padding-left:18px;margin:0 0 10px;font-size:13px;line-height:1.9;color:#333">'+(d.sc_coperta?'<li>Superficie coperta: <b>'+d.sc_coperta.toLocaleString('it-IT')+' mq</b></li>':'')+(d.altezza?'<li>Altezza sotto trave: <b>'+d.altezza+' m</b></li>':'')+(d.asking_rent?'<li>Asking rent: <b>'+d.asking_rent+' €/mq/anno</b></li>':'')+'<li>Disponibilità: <b>'+cLbl(d)+'</b></li>'+(d.frazionabile?'<li>Note: '+d.frazionabile+'</li>':'')+'</ul>'+pi+'</div>';
+    const pi=pl&&pl.startsWith('data:image')?'<p style="margin:10px 0 4px"></p><img src="'+pl+'" style="max-width:540px;width:100%;border-radius:4px;display:block;margin-bottom:14px">':'';
+    const num=idx+1;
+    const titolo=num+'. '+(d.comune||'—')+(d.provincia?' – '+d.provincia:'');
+    const cons=cLbl(d);
+    body+='<p style="margin:18px 0 4px 0"><strong>'+titolo+'</strong></p>';
+    body+='<p style="margin:0 0 2px 0">• Superficie coperta: <strong>'+(d.sc_coperta?d.sc_coperta.toLocaleString('it-IT')+' mq':'—')+'</strong></p>';
+    if(d.altezza)body+='<p style="margin:0 0 2px 0">• Altezza sotto trave: <strong>'+d.altezza+' m</strong></p>';
+    if(d.asking_rent)body+='<p style="margin:0 0 2px 0">• Asking rent: <strong>'+d.asking_rent+',00 €/mq/anno</strong></p>';
+    body+='<p style="margin:0 0 2px 0">• Disponibilità: <strong>'+cons+'</strong></p>';
+    if(d.frazionabile)body+='<p style="margin:0 0 2px 0">• Note: '+d.frazionabile+'</p>';
+    body+=pi;
   });
-  return '<div style="font-family:Arial,sans-serif;max-width:580px;color:#333;font-size:13px;line-height:1.6">'+(intro?'<div style="margin-bottom:22px">'+intro+'</div>':'')+body+'<div style="margin-top:26px;padding-top:12px;border-top:2px solid #1A3A2A;color:#999;font-size:11px">World Capital — Real Estate Logistics</div></div>';
+  body+='</div>';
+  return body;
 }
+
 window.showPrev=function(){document.getElementById('pmi').innerHTML=buildHtml();document.getElementById('prevov').classList.add('open')};
 
 
@@ -730,6 +742,7 @@ window.prepGmail=async function(){
     if(intro)body+='<div style="margin-bottom:24px">'+intro+'</div>';
     let totalImgSize=0;
     const MAX_TOTAL_IMG=3500000; // ~3.5MB budget for all images combined (base64 chars)
+    let idx=0;
     for(const item of items){
       const rif=item.dataset.rif;
       const d=RAW.find(x=>x.rif===rif);
@@ -746,15 +759,14 @@ window.prepGmail=async function(){
           imgHtml='<p style="font-size:12px;color:#888;font-style:italic">[Planimetria disponibile — allegare manualmente]</p>';
         }
       }
-      body+='<div style="margin-bottom:30px;padding-bottom:30px;border-bottom:1px solid #e5e5e5">';
-      body+='<h2 style="font-family:Georgia,serif;font-size:18px;color:#1A3A2A;margin:0 0 10px">'+(d.comune||'—')+(d.provincia?' – '+d.provincia:'')+'</h2>';
-      body+='<ul style="list-style:disc;padding-left:18px;margin:0 0 10px;font-size:13px;line-height:1.9;color:#333">';
-      if(d.sc_coperta)body+='<li>Superficie coperta: <b>'+d.sc_coperta.toLocaleString('it-IT')+' mq</b></li>';
-      if(d.altezza)body+='<li>Altezza sotto trave: <b>'+d.altezza+' m</b></li>';
-      if(d.asking_rent)body+='<li>Asking rent: <b>'+d.asking_rent+' €/mq/anno</b></li>';
-      body+='<li>Disponibilità: <b>'+cLbl(d)+'</b></li>';
-      if(d.frazionabile)body+='<li>Note: '+d.frazionabile+'</li>';
-      body+='</ul>'+imgHtml+'</div>';
+      body+='<p style="margin:18px 0 4px 0"><strong>'+(idx+1)+'. '+(d.comune||'—')+(d.provincia?' – '+d.provincia:'')+'</strong></p>';
+      body+='<p style="margin:0 0 2px 0">• Superficie coperta: <strong>'+(d.sc_coperta?d.sc_coperta.toLocaleString('it-IT')+' mq':'—')+'</strong></p>';
+      if(d.altezza)body+='<p style="margin:0 0 2px 0">• Altezza sotto trave: <strong>'+d.altezza+' m</strong></p>';
+      if(d.asking_rent)body+='<p style="margin:0 0 2px 0">• Asking rent: <strong>'+d.asking_rent+',00 €/mq/anno</strong></p>';
+      body+='<p style="margin:0 0 2px 0">• Disponibilità: <strong>'+cLbl(d)+'</strong></p>';
+      if(d.frazionabile)body+='<p style="margin:0 0 2px 0">• Note: '+d.frazionabile+'</p>';
+      body+=imgHtml;
+      idx++;
     }
     body+='<div style="margin-top:26px;padding-top:12px;border-top:2px solid #1A3A2A;color:#999;font-size:11px">World Capital — Real Estate Logistics</div></div>';
 
