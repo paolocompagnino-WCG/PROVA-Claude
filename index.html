@@ -351,7 +351,27 @@ const spl=(r,v)=>{try{localStorage.setItem(pk(r),v)}catch(e){}};
 const rpl=r=>{try{localStorage.removeItem(pk(r))}catch(e){}};
 const cLbl=d=>{if(!d.consegna_anno)return'Immediata/RTU';return d.consegna_trimestre?(d.consegna_trimestre+' '+d.consegna_anno):String(d.consegna_anno)};
 const dBdg=d=>d.disponibile===true?'<span class="bdg bgn">● Disponibile</span>':d.disponibile===false?'<span class="bdg brd">● Non disponibile</span>':'<span class="bdg bor">● In valutazione</span>';
-const CITIES={'Milano':[45.4654,9.1859],'Roma':[41.9028,12.4964],'Torino':[45.0703,7.6869],'Bologna':[44.4949,11.3426],'Verona':[45.4386,10.9928],'Bergamo':[45.6983,9.6773],'Brescia':[45.5416,10.2118],'Modena':[44.6483,10.9253],'Parma':[44.8015,10.328],'Piacenza':[45.0522,9.6933],'Venezia':[45.4408,12.3155],'Padova':[45.4064,11.8768],'Firenze':[43.7696,11.2558],'Genova':[44.4056,8.9463],'Napoli':[40.8522,14.2681],'Melegnano':[45.3567,9.3242],'Lodi':[45.3133,9.5036],'Pavia':[45.1847,9.1566],'Novara':[45.4458,8.6222],'Alessandria':[44.9133,8.6153],'Vicenza':[45.5464,11.5354],'Treviso':[45.6667,12.2417],'Rimini':[44.0594,12.5683],'Cremona':[45.1333,10.0233],'Mantova':[45.1564,10.7914],'Monza':[45.5845,9.2744],'Bari':[41.1171,16.8719],'Rivolta':[45.4733,9.5303],'Siziano':[45.3175,9.2008]};
+const CITIES={'Milano':[45.4654,9.1859],'Roma':[41.9028,12.4964],'Torino':[45.0703,7.6869],'Bologna':[44.4949,11.3426],'Verona':[45.4386,10.9928],'Bergamo':[45.6983,9.6773],'Brescia':[45.5416,10.2118],'Modena':[44.6483,10.9253],'Parma':[44.8015,10.328],'Piacenza':[45.0522,9.6933],'Venezia':[45.4408,12.3155],'Padova':[45.4064,11.8768],'Firenze':[43.7696,11.2558],'Genova':[44.4056,8.9463],'Napoli':[40.8522,14.2681],'Melegnano':[45.3567,9.3242],'Lodi':[45.3133,9.5036],'Pavia':[45.1847,9.1566],'Novara':[45.4458,8.6222],'Alessandria':[44.9133,8.6153],'Vicenza':[45.5464,11.5354],'Treviso':[45.6667,12.2417],'Rimini':[44.0594,12.5683],'Cremona':[45.1333,10.0233],'Mantova':[45.1564,10.7914],'Monza':[45.5845,9.2744],'Bari':[41.1171,16.8719],'Rivolta':[45.4733,9.5303],'Siziano':[45.3175,9.2008],
+'Gropello Cairoli':[45.1833,8.9833],'Gropello di Cairoli':[45.1833,8.9833],
+'Stradella':[45.0833,9.3],'Voghera':[44.9958,9.0094],
+'Tortona':[44.8958,8.8642],'Casale Monferrato':[45.1333,8.45],
+'Vigevano':[45.3167,8.8583],'Abbiategrasso':[45.3939,8.9178],
+'Legnano':[45.5958,8.9156],'Busto Arsizio':[45.6117,8.8542],
+'Gallarate':[45.6583,8.7917],'Varese':[45.8206,8.8253],
+'Saronno':[45.6244,9.0356],'Rho':[45.5297,9.0428],
+'Sesto San Giovanni':[45.5339,9.2331],'Cinisello Balsamo':[45.5597,9.2169],
+'Desio':[45.6181,9.2197],'Seregno':[45.6489,9.2017],
+'Carugate':[45.5333,9.35],'Cologno Monzese':[45.5258,9.2783],
+'Peschiera Borromeo':[45.4167,9.3167],'San Giuliano Milanese':[45.4,9.2833],
+'Corsico':[45.4333,9.1167],'Buccinasco':[45.4167,9.0833],
+'Lacchiarella':[45.3167,9.1333],'Locate Triulzi':[45.35,9.2167],
+'Opera':[45.3667,9.2],'Rozzano':[45.3833,9.15],
+'Trezzano sul Naviglio':[45.4167,9.0667],'Assago':[45.4,9.1167],
+'Segrate':[45.4833,9.3],'Vimodrone':[45.5,9.3],
+'Cernusco sul Naviglio':[45.5167,9.3333],'Cassina de Pecchi':[45.5167,9.3667],
+'Vimercate':[45.6167,9.3667],'Usmate Velate':[45.65,9.3667],
+'Cambiago':[45.5667,9.4667],'Gessate':[45.55,9.4333]
+};
 
 function initMap(){map=L.map('map',{zoomControl:true}).setView([45.2,10.5],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:18}).addTo(map);map.on('click',onMC);map.on('dblclick',onMD)}
 const mkI=c=>{const col={green:'#2D5C42',red:'#C0392B',orange:'#D68A00'}[c]||'#2D5C42';return L.divIcon({html:'<div style="width:9px;height:9px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>',iconSize:[9,9],iconAnchor:[4.5,4.5],className:''})};
@@ -373,7 +393,9 @@ window.applyGeo=function(){
   const p=aGP;if(p==='poly'){document.getElementById('geoov').classList.remove('open');return}
   if(p==='prov'){const v=[...document.getElementById('g-prov').selectedOptions].map(o=>o.value);if(!v.length)return;geoF.push({t:'prov',label:'Prov: '+v.join(', '),fn:d=>v.includes(d.provincia)})}
   else if(p==='reg'){const v=[...document.getElementById('g-reg').selectedOptions].map(o=>o.value);if(!v.length)return;geoF.push({t:'reg',label:'Reg: '+v.join(', '),fn:d=>v.includes(d.regione)})}
-  else if(p==='rag'){const loc=document.getElementById('g-loc').value.trim(),km=parseInt(document.getElementById('g-rag').value);if(!loc)return;const ck=Object.keys(CITIES).find(k=>k.toLowerCase().startsWith(loc.toLowerCase()));const dm=RAW.find(d=>d.comune&&d.comune.toLowerCase()===loc.toLowerCase());let lat,lon;if(ck){lat=CITIES[ck][0];lon=CITIES[ck][1]}else if(dm&&dm.lat){lat=dm.lat;lon=dm.lon}else{alert('Località non trovata.');return}geoF.push({t:'rag',label:loc+' ±'+km+'km',fn:d=>d.lat&&d.lon?hav(lat,lon,d.lat,d.lon)<=km:false});if(window._rc)map.removeLayer(window._rc);window._rc=L.circle([lat,lon],{radius:km*1000,color:'#1A3A2A',fillColor:'#2D5C42',fillOpacity:.07,weight:1.5,dashArray:'5,4'}).addTo(map);map.fitBounds(window._rc.getBounds(),{padding:[20,20]})}
+  else if(p==='rag'){const loc=document.getElementById('g-loc').value.trim(),km=parseInt(document.getElementById('g-rag').value);if(!loc)return;const locNorm=loc.toLowerCase().replace(/\bdi\b/g,'').replace(/\s+/g,' ').trim();
+      const ck=Object.keys(CITIES).find(k=>{const kn=k.toLowerCase().replace(/\bdi\b/g,'').replace(/\s+/g,' ').trim();return kn===locNorm||kn.startsWith(locNorm)||locNorm.startsWith(kn)});
+      const dm=RAW.find(d=>{if(!d.comune)return false;const cn=d.comune.toLowerCase().replace(/\bdi\b/g,'').replace(/\s+/g,' ').trim();return cn===locNorm||cn.startsWith(locNorm)||locNorm.startsWith(cn)});let lat,lon;if(ck){lat=CITIES[ck][0];lon=CITIES[ck][1]}else if(dm&&dm.lat){lat=dm.lat;lon=dm.lon}else{alert('Località non trovata.');return}geoF.push({t:'rag',label:loc+' ±'+km+'km',fn:d=>d.lat&&d.lon?hav(lat,lon,d.lat,d.lon)<=km:false});if(window._rc)map.removeLayer(window._rc);window._rc=L.circle([lat,lon],{radius:km*1000,color:'#1A3A2A',fillColor:'#2D5C42',fillOpacity:.07,weight:1.5,dashArray:'5,4'}).addTo(map);map.fitBounds(window._rc.getBounds(),{padding:[20,20]})}
   document.getElementById('geoov').classList.remove('open');renderGT();render();
 };
 function initF(){
