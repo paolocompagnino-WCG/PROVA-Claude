@@ -526,6 +526,7 @@ function buildHtml(){
     body+='<p style="margin:18px 0 4px 0"><strong>'+titolo+'</strong></p>';
     body+='<p style="margin:0 0 2px 0">• Superficie coperta: <strong>'+(d.sc_coperta?d.sc_coperta.toLocaleString('it-IT')+' mq':'—')+'</strong></p>';
     if(d.altezza)body+='<p style="margin:0 0 2px 0">• Altezza sotto trave: <strong>'+d.altezza+' m</strong></p>';
+    body+='<p style="margin:0 0 2px 0">• Numero di baie di carico: </p>';
     if(d.asking_rent)body+='<p style="margin:0 0 2px 0">• Asking rent: <strong>'+d.asking_rent+',00 €/mq/anno</strong></p>';
     body+='<p style="margin:0 0 2px 0">• Disponibilità: <strong>'+cons+'</strong></p>';
     if(d.frazionabile)body+='<p style="margin:0 0 2px 0">• Note: '+d.frazionabile+'</p>';
@@ -784,6 +785,7 @@ window.prepGmail=async function(){
       body+='<p style="margin:18px 0 4px 0"><strong>'+(idx+1)+'. '+(d.comune||'—')+(d.provincia?' – '+d.provincia:'')+'</strong></p>';
       body+='<p style="margin:0 0 2px 0">• Superficie coperta: <strong>'+(d.sc_coperta?d.sc_coperta.toLocaleString('it-IT')+' mq':'—')+'</strong></p>';
       if(d.altezza)body+='<p style="margin:0 0 2px 0">• Altezza sotto trave: <strong>'+d.altezza+' m</strong></p>';
+      body+='<p style="margin:0 0 2px 0">• Numero di baie di carico: </p>';
       if(d.asking_rent)body+='<p style="margin:0 0 2px 0">• Asking rent: <strong>'+d.asking_rent+',00 €/mq/anno</strong></p>';
       body+='<p style="margin:0 0 2px 0">• Disponibilità: <strong>'+cLbl(d)+'</strong></p>';
       if(d.frazionabile)body+='<p style="margin:0 0 2px 0">• Note: '+d.frazionabile+'</p>';
