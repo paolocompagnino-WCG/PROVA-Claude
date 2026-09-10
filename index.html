@@ -600,9 +600,9 @@ function initF(){
   const svS=document.getElementById('f-sv');
   svs.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;svS.appendChild(o)});
   // Anni handled by buildConsegnaList()
-  document.getElementById('st-t').textContent=RAW.length;document.getElementById('st-a').textContent=RAW.length;
+  const stT=document.getElementById('st-t');if(stT)stT.textContent=RAW.length;
 
-  document.querySelectorAll('[data-a]').forEach(b=>{if(b.dataset.a==='all'||b.dataset.a==='null')b.onclick=function(){setAnno(this,this.dataset.a)}});
+  // data-a buttons removed with consegna filter redesign
   document.getElementById('f-reg').onchange=function(){st.reg=this.value;st.pg=1;render()};
   document.getElementById('f-sv').onchange=function(){st.sv=this.value;st.pg=1;render()};
   document.getElementById('sort').onchange=function(){st.sort=this.value;st.pg=1;render()};
