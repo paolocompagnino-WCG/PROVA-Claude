@@ -605,9 +605,7 @@ function initF(){
   const svs=[...new Set(RAW.map(d=>d.sviluppatore).filter(Boolean))].sort();
   const svS=document.getElementById('f-sv');
   svs.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;svS.appendChild(o)});
-  const anni=[...new Set(RAW.map(d=>d.consegna_anno).filter(y=>typeof y==='number'))].sort();
-  const ag=document.getElementById('ag');
-  anni.forEach(y=>{const b=document.createElement('button');b.className='fb';b.dataset.a=y;b.textContent=y;b.onclick=function(){setAnno(this,String(y))};ag.appendChild(b)});
+  // Anni handled by buildConsegnaList()
   const av=RAW.filter(d=>d.disponibile===true).length,na=RAW.filter(d=>d.disponibile===false).length,uc=RAW.filter(d=>d.disponibile===null).length;
   document.getElementById('st-t').textContent=RAW.length;document.getElementById('st-a').textContent=av;
   document.getElementById('c-all').textContent=RAW.length;document.getElementById('c-av').textContent=av;
