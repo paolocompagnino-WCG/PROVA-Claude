@@ -1072,7 +1072,7 @@ window.prepGmail=async function(){
 }
 document.querySelectorAll('.ov').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.ov.open').forEach(o=>o.classList.remove('open'))});
-initMap();initF();render();
+initMap();initF();selRL.clear();selAL.clear();selSAL.clear();selConsegna.clear();st.areaFilter=null;st.consFilter=null;render();
 </script>
 </body>
 </html>
