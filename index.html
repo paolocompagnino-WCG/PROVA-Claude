@@ -211,7 +211,7 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
       <div class="geobar">
         <span class="gbl">Zona</span>
         <div id="gtags" style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:center"></div>
-        <button class="btn-ga" onclick="document.getElementById('geoov').classList.add('open')">+ Aggiungi area</button>
+        <button class="btn-ga" onclick="document.getElementById('geoov').classList.add('open');buildGeoRegList()">+ Aggiungi area</button>
         <button class="btn-gc" id="btngc" onclick="clearAllGeo()">✕ Cancella</button>
       </div>
       <div style="position:relative;flex-shrink:0">
@@ -263,24 +263,26 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 <input type="file" id="planin" accept=".png,.jpg,.jpeg">
 
 <div class="ov" id="geoov">
-  <div class="gmod">
+  <div class="gmod" style="max-width:420px">
     <h3>Aggiungi area geografica</h3>
     <div class="gtabs">
-      <button class="gtab on" data-p="prov" onclick="swGeo(this,'prov')">Provincia</button>
-      <button class="gtab" data-p="reg" onclick="swGeo(this,'reg')">Regione</button>
+      <button class="gtab on" data-p="geo" onclick="swGeo(this,'geo')">Regione / Provincia</button>
       <button class="gtab" data-p="rag" onclick="swGeo(this,'rag')">Raggio</button>
       <button class="gtab" data-p="poly" onclick="swGeo(this,'poly')">Poligono</button>
     </div>
-    <div class="gp on" id="gp-prov"><label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.35rem">Ctrl+clic per più province</label><select class="gsel" id="g-prov" size="6" multiple style="height:150px"></select></div>
-    <div class="gp" id="gp-reg"><label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.35rem">Ctrl+clic per più regioni</label><select class="gsel" id="g-reg" size="6" multiple style="height:150px"></select></div>
+    <div class="gp on" id="gp-geo">
+      <div id="geo-reg-list" style="display:flex;flex-direction:column;gap:.2rem;max-height:340px;overflow-y:auto;padding:.2rem 0"></div>
+    </div>
     <div class="gp" id="gp-rag">
       <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.35rem">Località</label>
       <input type="text" class="gsel" id="g-loc" placeholder="Es: Melegnano, Verona…">
-      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.3rem">Raggio: <strong id="ragv">30</strong> km</label>
+      <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:.25rem">Raggio: <strong id="ragv">30</strong> km</label>
       <input type="range" min="5" max="150" value="30" id="g-rag" oninput="document.getElementById('ragv').textContent=this.value" style="width:100%">
     </div>
     <div class="gp" id="gp-poly"><p style="font-size:.82rem;color:var(--muted);line-height:1.55">Usa il tool <strong>⬡</strong> sulla mappa. Doppio click per chiudere il poligono.</p></div>
     <div class="gmf"><button class="gb" onclick="document.getElementById('geoov').classList.remove('open')">Annulla</button><button class="gb pri" onclick="applyGeo()">Applica</button></div>
+    <select id="g-prov" style="display:none" multiple></select>
+    <select id="g-reg" style="display:none" multiple></select>
   </div>
 </div>
 
@@ -393,6 +395,48 @@ const CITIES={'Milano':[45.4654,9.1859],'Roma':[41.9028,12.4964],'Torino':[45.07
 };
 
 
+
+const REG_PROV={"CAMPANIA": ["NAPOLI"], "EMILIA-ROMAGNA": ["BOLOGNA", "FERRARA", "FORLI'-CESENA", "PARMA", "PIACENZA", "REGGIO NELL'EMILIA"], "FRIULI-VENEZIA GIULIA": ["GORIZIA", "PORDENONE", "UDINE"], "LAZIO": ["FROSINONE", "RIETI", "ROMA"], "LOMBARDIA": ["BERGAMO", "BRESCIA", "COMO", "CREMONA", "LODI", "MANTOVA", "MILANO", "MONZA E BRIANZA", "PAVIA", "VARESE"], "PIEMONTE": ["ALESSANDRIA", "NOVARA", "TORINO", "VERCELLI"], "PUGLIA": ["BARI"], "SARDEGNA": ["NUORO", "SASSARI"], "TOSCANA": ["AREZZO", "FIRENZE", "LIVORNO", "PISA", "PISTOIA", "PRATO"], "VENETO": ["PADOVA", "TREVISO", "VENEZIA", "VERONA"]};
+let selGeoReg=new Set(),selGeoProv=new Set();
+
+function buildGeoRegList(){
+  const c=document.getElementById('geo-reg-list');if(!c)return;c.innerHTML='';
+  Object.entries(REG_PROV).forEach(([reg,provs])=>{
+    const regDiv=document.createElement('div');
+    regDiv.style.cssText='border-radius:6px;margin-bottom:.2rem';
+    const regRow=document.createElement('label');
+    regRow.className='chk-lbl';
+    regRow.style.cssText='font-weight:500;padding:.3rem .5rem;background:var(--bg);border-radius:6px';
+    regRow.innerHTML='<input type="checkbox" value="'+reg+'"><span>'+reg+'</span>';
+    const regChk=regRow.querySelector('input');
+    regChk.checked=selGeoReg.has(reg);
+    regChk.addEventListener('change',function(){
+      if(this.checked){selGeoReg.add(reg)}
+      else{selGeoReg.delete(reg);provs.forEach(p=>selGeoProv.delete(p));}
+      buildGeoRegList();
+    });
+    regDiv.appendChild(regRow);
+    if(selGeoReg.has(reg)){
+      const provContainer=document.createElement('div');
+      provContainer.style.cssText='padding-left:.8rem;border-left:2px solid var(--border);margin:.1rem 0 .1rem .5rem';
+      provs.forEach(prov=>{
+        const provRow=document.createElement('label');
+        provRow.className='chk-lbl';
+        provRow.style.cssText='padding:.2rem .4rem;border-radius:5px';
+        provRow.innerHTML='<input type="checkbox" value="'+prov+'"><span>'+prov+'</span>';
+        const provChk=provRow.querySelector('input');
+        provChk.checked=selGeoProv.has(prov);
+        provChk.addEventListener('change',function(){
+          if(this.checked)selGeoProv.add(prov);else selGeoProv.delete(prov);
+          buildGeoRegList();
+        });
+        provContainer.appendChild(provRow);
+      });
+      regDiv.appendChild(provContainer);
+    }
+    c.appendChild(regDiv);
+  });
+}
 
 const AREA_HIERARCHY={"RLCO": {"AL_Romana": ["SAL_Roma Citta", "SAL_Roma Nord", "SAL_Roma Ovest", "SAL_Roma Sud"], "AL_Pisana": ["SAL_Pisa Metropolitana"], "AL_Aretina": ["SAL_Valdichiana"], "AL_Pistoiese": ["SAL_Pistoia metropolitana"], "AL_Livornese": ["SAL_Alta Costa Tirrenica"], "AL_Fiorentina": ["SAL_Fiorentina metropolitana"], "AL_Pratese": ["SAL_Pratese"]}, "RLNO": {"AL_Alessandrina": ["SAL_Appennino Alessandrino", "SAL_Pianura Alessandrina", "SAL_Scrivia"], "AL_Vercellese": ["SAL_Pianura Vercellese"], "AL_Torinese": ["SAL_Canavese", "SAL_Torino Metropolitana"]}, "RLM": {"AL_Mantovana Creomonese": ["SAL_Cremonese", "SAL_Montavana"], "AL_Novarese": ["SAL_Novara Metropolitana"], "AL_Pavese": ["SAL_Lomellina", "SAL_Oltrepo"], "AL_Milanese": ["SAL_Milanese-Citta", "SAL_Milanese-Est", "SAL_Milanese-Nord", "SAL_Milanese-Ovest", "SAL_Milanese-Sud"], "AL_Bergamasca": ["SAL_Pianura Bergamasca"], "AL_Varesina": ["SAL_MXP"], "AL_Comasca": ["SAL_Como Metropolitana"], "AL_Bresciana": ["SAL_BREBEMI-A21", "SAL_Brescia Metropolitana", "SAL_Franciacorta"], "AL_Lodigiana": ["SAL_Casalese"], "AL_Piacentina": ["SAL_Basso Piacentino", "SAL_Piacentina-Citta"], "ANL": ["SALN"]}, "RLNE": {"AL_Padovana": ["SAL_Alto Padovano", "SAL_Basso Padovano", "SAL_Padova Metropolitana"], "AL_Veronese": ["SAL_Bassa Pianura Veronese", "SAL_Lessino", "SAL_Verona Metropolitana"], "AL_Trevigiana": ["SAL_Trevigiana Metropolitana"], "AL_Veneziana": ["SAL_Venezia Centrale", "SAL_Venezia Metropolitana"], "AL_Friulana": ["SAL_Goriziana", "SAL_Pianura Udinese", "SAL_Podenonese Metropolitano"], "ANL": ["SALN"]}, "RLCE": {"AL_Bolognese": ["SAL_Imolese", "SAL_Pianura Bolognese"], "AL_Reggiana": ["SAL_Gustallese", "SAL_Reggio Emilia Metropolitana"], "AL_Parmigiana": ["SAL_Pianura Parmense"], "AL_Delta del Po": ["SAL_Costa Adriatica Emiliana", "SAL_Ferrarese", "SAL_Foreste Casentinesi"]}, "RLSE": {"AL_Pugliese": ["SAL_Puglia-Costa"]}, "RLSO": {"AL_Campana": ["SAL_Napoletana"]}, "RLSA": {"AL_Macomer": ["SAL_Macomer"], "AL_Sassarese": ["SAL-Sassarese"]}};
 const RL_LABELS={"RLNO": "Nord Ovest", "RLNE": "Nord Est", "RLM": "Medio Nord", "RLCE": "Centro Est", "RLCO": "Centro Ovest", "RLSO": "Sud Ovest", "RLSE": "Sud Est", "RLSA": "Sud e Isole"};
@@ -574,11 +618,20 @@ function renderGT(){const c=document.getElementById('gtags');c.innerHTML='';geoF
 window.rmGeo=function(i){if(geoF[i].t==='poly')clrDraw();else{geoF.splice(i,1);renderGT();render()}};
 window.clearAllGeo=function(){geoF=[];clrDraw();renderGT();render()};
 let aGP='prov';
-window.swGeo=function(b,p){document.querySelectorAll('.gtab').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.gp').forEach(x=>x.classList.remove('on'));b.classList.add('on');aGP=p;document.getElementById('gp-'+p).classList.add('on');if(p==='poly'){document.getElementById('geoov').classList.remove('open');setDraw(true)}};
+window.swGeo=function(b,p){
+  if(p==='geo')buildGeoRegList();document.querySelectorAll('.gtab').forEach(x=>x.classList.remove('on'));document.querySelectorAll('.gp').forEach(x=>x.classList.remove('on'));b.classList.add('on');aGP=p;document.getElementById('gp-'+p).classList.add('on');if(p==='poly'){document.getElementById('geoov').classList.remove('open');setDraw(true)}};
 window.applyGeo=function(){
   const p=aGP;if(p==='poly'){document.getElementById('geoov').classList.remove('open');return}
-  if(p==='prov'){const v=[...document.getElementById('g-prov').selectedOptions].map(o=>o.value);if(!v.length)return;geoF.push({t:'prov',label:'Prov: '+v.join(', '),fn:d=>v.includes(d.provincia)})}
-  else if(p==='reg'){const v=[...document.getElementById('g-reg').selectedOptions].map(o=>o.value);if(!v.length)return;geoF.push({t:'reg',label:'Reg: '+v.join(', '),fn:d=>v.includes(d.regione)})}
+  if(p==='geo'){
+    if(selGeoProv.size>0){
+      const provs=[...selGeoProv];
+      geoF.push({t:'prov',label:'Prov: '+provs.join(', '),fn:d=>provs.includes(d.provincia)});
+    } else if(selGeoReg.size>0){
+      const regs=[...selGeoReg];
+      geoF.push({t:'reg',label:'Reg: '+regs.join(', '),fn:d=>regs.includes(d.regione)});
+    } else return;
+    selGeoReg.clear();selGeoProv.clear();
+  }
   else if(p==='rag'){const loc=document.getElementById('g-loc').value.trim(),km=parseInt(document.getElementById('g-rag').value);if(!loc)return;const locNorm=loc.toLowerCase().replace(/\bdi\b/g,'').replace(/\s+/g,' ').trim();
       const ck=Object.keys(CITIES).find(k=>{const kn=k.toLowerCase().replace(/\bdi\b/g,'').replace(/\s+/g,' ').trim();return kn===locNorm||kn.startsWith(locNorm)||locNorm.startsWith(kn)});
       const dm=RAW.find(d=>{if(!d.comune)return false;const cn=d.comune.toLowerCase().replace(/\bdi\b/g,'').replace(/\s+/g,' ').trim();return cn===locNorm||cn.startsWith(locNorm)||locNorm.startsWith(cn)});let lat,lon;if(ck){lat=CITIES[ck][0];lon=CITIES[ck][1]}else if(dm&&dm.lat){lat=dm.lat;lon=dm.lon}else{alert('Località non trovata.');return}geoF.push({t:'rag',label:loc+' ±'+km+'km',fn:d=>d.lat&&d.lon?hav(lat,lon,d.lat,d.lon)<=km:false});if(window._rc)map.removeLayer(window._rc);window._rc=L.circle([lat,lon],{radius:km*1000,color:'#1A3A2A',fillColor:'#2D5C42',fillOpacity:.07,weight:1.5,dashArray:'5,4'}).addTo(map);map.fitBounds(window._rc.getBounds(),{padding:[20,20]})}
