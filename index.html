@@ -208,13 +208,7 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
       <div class="fs">
         <h4 style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="toggleSection('sec-cons')">Consegna <span id="sec-cons-ico">▼</span></h4>
         <div id="sec-cons" style="display:none;margin-top:.4rem">
-          <label style="display:flex;align-items:center;gap:.4rem;font-size:.76rem;cursor:pointer;padding:.25rem 0">
-            <input type="checkbox" id="chk-rtu" onchange="updateConsegnaFilter()"> Ready to Use
-          </label>
-          <div style="font-size:.62rem;color:var(--muted);margin:.4rem 0 .2rem;font-weight:600">ANNO</div>
-          <div id="anni-checks" style="display:flex;flex-direction:column;gap:.15rem"></div>
-          <div style="font-size:.62rem;color:var(--muted);margin:.4rem 0 .2rem;font-weight:600">TRIMESTRE</div>
-          <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="trim-checks"></div>
+          <div id="cons-list" style="display:flex;flex-direction:column;gap:.15rem"></div>
           <button onclick="clearConsegnaFilter()" style="margin-top:.5rem;font-size:.65rem;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:5px;padding:.2rem .5rem;cursor:pointer;width:100%">✕ Azzera consegna</button>
         </div>
       </div>
@@ -407,10 +401,12 @@ const CITIES={'Milano':[45.4654,9.1859],'Roma':[41.9028,12.4964],'Torino':[45.07
 };
 
 
+
 const AREA_HIERARCHY={"RLCO": {"AL_Romana": ["SAL_Roma Citta", "SAL_Roma Nord", "SAL_Roma Ovest", "SAL_Roma Sud"], "AL_Pisana": ["SAL_Pisa Metropolitana"], "AL_Aretina": ["SAL_Valdichiana"], "AL_Pistoiese": ["SAL_Pistoia metropolitana"], "AL_Livornese": ["SAL_Alta Costa Tirrenica"], "AL_Fiorentina": ["SAL_Fiorentina metropolitana"], "AL_Pratese": ["SAL_Pratese"]}, "RLNO": {"AL_Alessandrina": ["SAL_Appennino Alessandrino", "SAL_Pianura Alessandrina", "SAL_Scrivia"], "AL_Vercellese": ["SAL_Pianura Vercellese"], "AL_Torinese": ["SAL_Canavese", "SAL_Torino Metropolitana"]}, "RLM": {"AL_Mantovana Creomonese": ["SAL_Cremonese", "SAL_Montavana"], "AL_Novarese": ["SAL_Novara Metropolitana"], "AL_Pavese": ["SAL_Lomellina", "SAL_Oltrepo"], "AL_Milanese": ["SAL_Milanese-Citta", "SAL_Milanese-Est", "SAL_Milanese-Nord", "SAL_Milanese-Ovest", "SAL_Milanese-Sud"], "AL_Bergamasca": ["SAL_Pianura Bergamasca"], "AL_Varesina": ["SAL_MXP"], "AL_Comasca": ["SAL_Como Metropolitana"], "AL_Bresciana": ["SAL_BREBEMI-A21", "SAL_Brescia Metropolitana", "SAL_Franciacorta"], "AL_Lodigiana": ["SAL_Casalese"], "AL_Piacentina": ["SAL_Basso Piacentino", "SAL_Piacentina-Citta"], "ANL": ["SALN"]}, "RLNE": {"AL_Padovana": ["SAL_Alto Padovano", "SAL_Basso Padovano", "SAL_Padova Metropolitana"], "AL_Veronese": ["SAL_Bassa Pianura Veronese", "SAL_Lessino", "SAL_Verona Metropolitana"], "AL_Trevigiana": ["SAL_Trevigiana Metropolitana"], "AL_Veneziana": ["SAL_Venezia Centrale", "SAL_Venezia Metropolitana"], "AL_Friulana": ["SAL_Goriziana", "SAL_Pianura Udinese", "SAL_Podenonese Metropolitano"], "ANL": ["SALN"]}, "RLCE": {"AL_Bolognese": ["SAL_Imolese", "SAL_Pianura Bolognese"], "AL_Reggiana": ["SAL_Gustallese", "SAL_Reggio Emilia Metropolitana"], "AL_Parmigiana": ["SAL_Pianura Parmense"], "AL_Delta del Po": ["SAL_Costa Adriatica Emiliana", "SAL_Ferrarese", "SAL_Foreste Casentinesi"]}, "RLSE": {"AL_Pugliese": ["SAL_Puglia-Costa"]}, "RLSO": {"AL_Campana": ["SAL_Napoletana"]}, "RLSA": {"AL_Macomer": ["SAL_Macomer"], "AL_Sassarese": ["SAL-Sassarese"]}};
 const RL_LABELS={"RLNO": "Nord Ovest", "RLNE": "Nord Est", "RLM": "Medio Nord", "RLCE": "Centro Est", "RLCO": "Centro Ovest", "RLSO": "Sud Ovest", "RLSE": "Sud Est", "RLSA": "Sud e Isole"};
+const ANNO_TRIM={"2025": ["Q2"], "2026": ["Q2", "Q3", "Q4"], "2027": ["Q1", "Q2", "Q3", "Q4"], "2028": ["Q1", "Q2", "Q3", "Q4"], "2029": ["Q2"]};
 let selRL=new Set(),selAL=new Set(),selSAL=new Set();
-let selAnni=new Set(),selTrim=new Set(),selRTU=false;
+let selConsegna=new Set(); // "RTU" or "2027_Q3" etc
 
 function toggleSection(id){
   const el=document.getElementById(id);
@@ -425,62 +421,74 @@ function buildRLList(){
   Object.keys(AREA_HIERARCHY).sort().forEach(rl=>{
     const lbl=RL_LABELS[rl]||rl;
     const cnt=RAW.filter(d=>d.rl===rl).length;
-    const div=document.createElement('label');div.className='chk-lbl';
-    div.innerHTML='<input type="checkbox" value="'+rl+'"><span>'+lbl+'</span><span class="cnt">'+cnt+'</span>';
-    div.querySelector('input').checked=selRL.has(rl);
-    div.querySelector('input').addEventListener('change',function(){
-      if(this.checked)selRL.add(rl);else{selRL.delete(rl);selAL.clear();selSAL.clear()}
-      updateALList();updateConsegnaFilter();applyAreaFilter();
+    // RL row
+    const rlDiv=document.createElement('div');
+    rlDiv.style.cssText='border-radius:6px;overflow:hidden;margin-bottom:.2rem';
+    const rlRow=document.createElement('label');
+    rlRow.className='chk-lbl';
+    rlRow.style.cssText='background:var(--bg);padding:.3rem .5rem;border-radius:6px;font-weight:500';
+    rlRow.innerHTML='<input type="checkbox" value="'+rl+'"><span>'+lbl+'</span><span class="cnt">'+cnt+'</span>';
+    const rlChk=rlRow.querySelector('input');
+    rlChk.checked=selRL.has(rl);
+    rlChk.addEventListener('change',function(){
+      if(this.checked){selRL.add(rl)}
+      else{selRL.delete(rl);
+        // Remove AL and SAL under this RL
+        Object.keys(AREA_HIERARCHY[rl]||{}).forEach(al=>{selAL.delete(al);
+          (AREA_HIERARCHY[rl][al]||[]).forEach(sal=>selSAL.delete(sal));
+        });
+      }
+      buildRLList();applyAreaFilter();
     });
-    c.appendChild(div);
-  });
-}
+    rlDiv.appendChild(rlRow);
 
-function updateALList(){
-  const alSec=document.getElementById('al-section');
-  const c=document.getElementById('al-list');c.innerHTML='';
-  if(selRL.size===0){alSec.style.display='none';return}
-  alSec.style.display='';
-  const allALs=new Set();
-  selRL.forEach(rl=>Object.keys(AREA_HIERARCHY[rl]||{}).forEach(al=>allALs.add(al)));
-  [...allALs].sort().forEach(al=>{
-    const lbl=al.replace('AL_','');
-    const cnt=RAW.filter(d=>d.al===al&&selRL.has(d.rl)).length;
-    const div=document.createElement('label');div.className='chk-lbl';
-    div.innerHTML='<input type="checkbox" value="'+al+'"><span>'+lbl+'</span><span class="cnt">'+cnt+'</span>';
-    div.querySelector('input').checked=selAL.has(al);
-    div.querySelector('input').addEventListener('change',function(){
-      if(this.checked)selAL.add(al);else{selAL.delete(al);selSAL.clear()}
-      updateSALList();applyAreaFilter();
-    });
-    c.appendChild(div);
-  });
-  updateSALList();
-}
+    // AL children (visible only if RL selected)
+    if(selRL.has(rl)){
+      const alContainer=document.createElement('div');
+      alContainer.style.cssText='padding-left:.8rem;border-left:2px solid var(--border);margin:.2rem 0 .2rem .5rem';
+      Object.keys(AREA_HIERARCHY[rl]).sort().forEach(al=>{
+        const alLbl=al.replace('AL_','');
+        const alCnt=RAW.filter(d=>d.al===al&&d.rl===rl).length;
+        const alRow=document.createElement('label');
+        alRow.className='chk-lbl';
+        alRow.style.cssText='padding:.25rem .4rem;border-radius:5px';
+        alRow.innerHTML='<input type="checkbox" value="'+al+'"><span>'+alLbl+'</span><span class="cnt">'+alCnt+'</span>';
+        const alChk=alRow.querySelector('input');
+        alChk.checked=selAL.has(al);
+        alChk.addEventListener('change',function(){
+          if(this.checked){selAL.add(al)}
+          else{selAL.delete(al);
+            (AREA_HIERARCHY[rl][al]||[]).forEach(sal=>selSAL.delete(sal));
+          }
+          buildRLList();applyAreaFilter();
+        });
+        alContainer.appendChild(alRow);
 
-function updateSALList(){
-  const salSec=document.getElementById('sal-section');
-  const c=document.getElementById('sal-list');c.innerHTML='';
-  if(selAL.size===0){salSec.style.display='none';return}
-  salSec.style.display='';
-  const allSALs=new Set();
-  selAL.forEach(al=>{
-    selRL.forEach(rl=>{
-      const sals=(AREA_HIERARCHY[rl]||{})[al]||[];
-      sals.forEach(s=>allSALs.add(s));
-    });
-  });
-  [...allSALs].filter(s=>s&&s!=='SALN').sort().forEach(sal=>{
-    const lbl=sal.replace('SAL_','');
-    const cnt=RAW.filter(d=>d.sal===sal&&selAL.has(d.al)).length;
-    const div=document.createElement('label');div.className='chk-lbl';
-    div.innerHTML='<input type="checkbox" value="'+sal+'"><span>'+lbl+'</span><span class="cnt">'+cnt+'</span>';
-    div.querySelector('input').checked=selSAL.has(sal);
-    div.querySelector('input').addEventListener('change',function(){
-      if(this.checked)selSAL.add(sal);else selSAL.delete(sal);
-      applyAreaFilter();
-    });
-    c.appendChild(div);
+        // SAL children (visible only if AL selected)
+        if(selAL.has(al)){
+          const salContainer=document.createElement('div');
+          salContainer.style.cssText='padding-left:.7rem;border-left:2px solid var(--border);margin:.1rem 0 .1rem .4rem';
+          (AREA_HIERARCHY[rl][al]||[]).filter(s=>s&&s!=='SALN').sort().forEach(sal=>{
+            const salLbl=sal.replace('SAL_','');
+            const salCnt=RAW.filter(d=>d.sal===sal&&d.al===al).length;
+            const salRow=document.createElement('label');
+            salRow.className='chk-lbl';
+            salRow.style.cssText='padding:.2rem .3rem;border-radius:4px;font-size:.72rem';
+            salRow.innerHTML='<input type="checkbox" value="'+sal+'"><span>'+salLbl+'</span><span class="cnt">'+salCnt+'</span>';
+            const salChk=salRow.querySelector('input');
+            salChk.checked=selSAL.has(sal);
+            salChk.addEventListener('change',function(){
+              if(this.checked)selSAL.add(sal);else selSAL.delete(sal);
+              buildRLList();applyAreaFilter();
+            });
+            salContainer.appendChild(salRow);
+          });
+          alContainer.appendChild(salContainer);
+        }
+      });
+      rlDiv.appendChild(alContainer);
+    }
+    c.appendChild(rlDiv);
   });
 }
 
@@ -490,52 +498,74 @@ function applyAreaFilter(){
 
 window.clearAreaFilter=function(){
   selRL.clear();selAL.clear();selSAL.clear();
-  st.areaFilter=null;
-  buildRLList();updateALList();
-  document.getElementById('al-section').style.display='none';
-  document.getElementById('sal-section').style.display='none';
-  st.pg=1;render();
+  st.areaFilter=null;buildRLList();st.pg=1;render();
 };
 
 function buildConsegnaList(){
-  const anni=[...new Set(RAW.map(d=>d.consegna_anno).filter(Boolean))].sort();
-  const ac=document.getElementById('anni-checks');ac.innerHTML='';
-  anni.forEach(a=>{
-    const cnt=RAW.filter(d=>d.consegna_anno===a).length;
-    const div=document.createElement('label');div.className='chk-lbl';
-    div.innerHTML='<input type="checkbox" value="'+a+'"><span>'+a+'</span><span class="cnt">'+cnt+'</span>';
-    div.querySelector('input').checked=selAnni.has(a);
-    div.querySelector('input').addEventListener('change',function(){
-      if(this.checked)selAnni.add(parseInt(this.value));else selAnni.delete(parseInt(this.value));
-      updateConsegnaFilter();
-    });
-    ac.appendChild(div);
+  const c=document.getElementById('cons-list');if(!c)return;c.innerHTML='';
+  // RTU row
+  const rtuRow=document.createElement('label');rtuRow.className='chk-lbl';
+  rtuRow.style.cssText='font-weight:500;padding:.3rem .5rem;background:var(--bg);border-radius:6px;margin-bottom:.3rem';
+  rtuRow.innerHTML='<input type="checkbox" value="RTU"><span>Ready to Use</span><span class="cnt">'+RAW.filter(d=>d.consegna_label&&d.consegna_label.toLowerCase().startsWith('ready')).length+'</span>';
+  rtuRow.querySelector('input').checked=selConsegna.has('RTU');
+  rtuRow.querySelector('input').addEventListener('change',function(){
+    if(this.checked)selConsegna.add('RTU');else selConsegna.delete('RTU');
+    updateConsegnaFilterState();
   });
-  const trims=['Q1','Q2','Q3','Q4'];
-  const tc=document.getElementById('trim-checks');tc.innerHTML='';
-  trims.forEach(q=>{
-    const div=document.createElement('label');div.className='chk-lbl';div.style.flex='0 0 calc(50% - .15rem)';
-    div.innerHTML='<input type="checkbox" value="'+q+'"><span>'+q+'</span>';
-    div.querySelector('input').checked=selTrim.has(q);
-    div.querySelector('input').addEventListener('change',function(){
-      if(this.checked)selTrim.add(this.value);else selTrim.delete(this.value);
-      updateConsegnaFilter();
+  c.appendChild(rtuRow);
+
+  // Years with quarter sub-rows
+  Object.entries(ANNO_TRIM).forEach(([anno,trims])=>{
+    const annoInt=parseInt(anno);
+    const annoCnt=RAW.filter(d=>d.consegna_anno===annoInt).length;
+    const annoDiv=document.createElement('div');
+    annoDiv.style.cssText='border-radius:6px;overflow:hidden;margin-bottom:.2rem';
+    const annoRow=document.createElement('label');
+    annoRow.className='chk-lbl';
+    annoRow.style.cssText='font-weight:500;padding:.3rem .5rem;background:var(--bg);border-radius:6px';
+    annoRow.innerHTML='<input type="checkbox" value="anno_'+anno+'"><span>'+anno+'</span><span class="cnt">'+annoCnt+'</span>';
+    const annoChk=annoRow.querySelector('input');
+    const allTrimsSelected=trims.every(q=>selConsegna.has(anno+'_'+q));
+    annoChk.checked=allTrimsSelected&&trims.length>0;
+    annoChk.indeterminate=!allTrimsSelected&&trims.some(q=>selConsegna.has(anno+'_'+q));
+    annoChk.addEventListener('change',function(){
+      if(this.checked)trims.forEach(q=>selConsegna.add(anno+'_'+q));
+      else trims.forEach(q=>selConsegna.delete(anno+'_'+q));
+      buildConsegnaList();updateConsegnaFilterState();
     });
-    tc.appendChild(div);
+    annoDiv.appendChild(annoRow);
+
+    // Quarter rows
+    const qContainer=document.createElement('div');
+    qContainer.style.cssText='padding-left:.8rem;border-left:2px solid var(--border);margin:.1rem 0 .1rem .5rem';
+    trims.forEach(q=>{
+      const key=anno+'_'+q;
+      const qCnt=RAW.filter(d=>d.consegna_anno===annoInt&&d.consegna_trimestre===q).length;
+      const qRow=document.createElement('label');qRow.className='chk-lbl';
+      qRow.style.cssText='padding:.2rem .4rem;border-radius:5px';
+      qRow.innerHTML='<input type="checkbox" value="'+key+'"><span>'+q+'</span><span class="cnt">'+qCnt+'</span>';
+      const qChk=qRow.querySelector('input');qChk.checked=selConsegna.has(key);
+      qChk.addEventListener('change',function(){
+        if(this.checked)selConsegna.add(key);else selConsegna.delete(key);
+        buildConsegnaList();updateConsegnaFilterState();
+      });
+      qContainer.appendChild(qRow);
+    });
+    annoDiv.appendChild(qContainer);
+    c.appendChild(annoDiv);
   });
 }
 
-window.updateConsegnaFilter=function(){
-  selRTU=document.getElementById('chk-rtu').checked;
-  st.consFilter={anni:selAnni,trim:selTrim,rtu:selRTU};st.pg=1;render();
-};
+function updateConsegnaFilterState(){
+  st.consFilter=selConsegna.size>0?selConsegna:null;st.pg=1;render();
+}
+
+window.updateConsegnaFilter=function(){updateConsegnaFilterState()};
 
 window.clearConsegnaFilter=function(){
-  selAnni.clear();selTrim.clear();selRTU=false;
-  document.getElementById('chk-rtu').checked=false;
-  buildConsegnaList();
-  st.consFilter=null;st.pg=1;render();
+  selConsegna.clear();st.consFilter=null;buildConsegnaList();st.pg=1;render();
 };
+
 
 function initMap(){map=L.map('map',{zoomControl:true}).setView([45.2,10.5],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:18}).addTo(map);map.on('click',onMC);map.on('dblclick',onMD)}
 const mkI=c=>{const col={green:'#2D5C42',red:'#C0392B',orange:'#D68A00'}[c]||'#2D5C42';return L.divIcon({html:'<div style="width:9px;height:9px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>',iconSize:[9,9],iconAnchor:[4.5,4.5],className:''})};
@@ -610,20 +640,15 @@ function applyF(){
   if(st.scMin!==null)d=d.filter(x=>x.sc_coperta&&x.sc_coperta>=st.scMin);
   if(st.scMax!==null)d=d.filter(x=>x.sc_coperta&&x.sc_coperta<=st.scMax);
   // Consegna filter
-  if(st.consFilter){
-    const {anni,trim,rtu}=st.consFilter;
-    const hasFilter=anni.size>0||trim.size>0||rtu;
-    if(hasFilter){
-      d=d.filter(x=>{
-        const isRTU=x.consegna_label&&x.consegna_label.toLowerCase().startsWith('ready');
-        if(rtu&&isRTU)return true;
-        if(isRTU)return false;
-        const okAnno=anni.size===0||anni.has(x.consegna_anno);
-        const okTrim=trim.size===0||trim.has(x.consegna_trimestre);
-        return okAnno&&okTrim;
-      });
-    }
-  } else if(st.a!=='all'){if(st.a==='null')d=d.filter(x=>!x.consegna_anno);else d=d.filter(x=>x.consegna_anno===parseInt(st.a))}
+  if(st.consFilter&&st.consFilter.size>0){
+    d=d.filter(x=>{
+      const isRTU=x.consegna_label&&x.consegna_label.toLowerCase().startsWith('ready');
+      if(st.consFilter.has('RTU')&&isRTU)return true;
+      const key=x.consegna_anno+'_'+x.consegna_trimestre;
+      if(st.consFilter.has(key))return true;
+      return false;
+    });
+  }
   if(st.q){const q=st.q.toLowerCase();d=d.filter(x=>(x.comune&&x.comune.toLowerCase().includes(q))||(x.provincia&&x.provincia.toLowerCase().includes(q))||(x.sviluppatore&&x.sviluppatore.toLowerCase().includes(q))||(x.rif&&x.rif.toLowerCase().includes(q))||(x.referente&&x.referente.toLowerCase().includes(q)))}
   if(geoF.length)d=d.filter(x=>geoF.every(f=>f.fn(x)));
   d.sort((a,b)=>{if(st.sort==='sc-desc')return(b.sc_coperta||0)-(a.sc_coperta||0);if(st.sort==='sc-asc')return(a.sc_coperta||0)-(b.sc_coperta||0);if(st.sort==='rent-asc')return(a.asking_rent||999)-(b.asking_rent||999);if(st.sort==='rent-desc')return(b.asking_rent||0)-(a.asking_rent||0);return 0});
@@ -639,9 +664,10 @@ function render(){
   if(!page.length){grid.innerHTML='<div class="empty">Nessun immobile trovato</div>'}
   else{page.forEach(d=>{
     const cls='card'+(d.disponibile===false?' na':d.disponibile===null?' uc':'')+(selRifs.has(d.rif)?' sel':'');
+    const tipoBadge=d.tipo==='frazionamento'?'<span style="display:inline-block;padding:.1rem .4rem;border-radius:100px;font-size:.58rem;font-weight:600;background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;margin-top:.25rem;margin-right:.3rem">⬡ Fraz.</span>':'<span style="display:inline-block;padding:.1rem .4rem;border-radius:100px;font-size:.58rem;font-weight:600;background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0;margin-top:.25rem;margin-right:.3rem">◈ Principale</span>';
     const hp=!!gpl(d.rif);
     const c=document.createElement('div');c.className=cls;
-    c.innerHTML='<div class="chk">'+(selRifs.has(d.rif)?'✓':'')+'</div><div class="crif">'+(d.rif||'—')+'</div><div class="ctit">'+(d.comune||'—')+'</div>'+dBdg(d)+'<div class="mets"><div class="met"><div class="mv">'+(d.sc_coperta?d.sc_coperta.toLocaleString('it-IT'):'—')+'</div><div class="ml">mq</div></div><div class="met"><div class="mv">'+(d.altezza?d.altezza+'m':'—')+'</div><div class="ml">altezza</div></div><div class="met"><div class="mv">'+(d.asking_rent?'€'+d.asking_rent:'—')+'</div><div class="ml">€/mq/a</div></div></div><div class="cdet"><div class="cdr">📍 <span>'+[d.comune,d.provincia,d.regione].filter(Boolean).join(' · ')+'</span></div><div class="cdr">🏗 <strong>'+(d.sviluppatore||'—')+'</strong></div><div class="cdr">📅 Consegna: <strong>'+cLbl(d)+'</strong></div></div><div class="cfoot"><div class="cref"><span>Referente</span><strong>'+(d.referente||'—')+'</strong></div><button class="bpl'+(hp?' hp':'')+'" data-r="'+d.rif+'">'+(hp?'📐':'📎')+' Plan.</button></div>';
+    c.innerHTML='<div class="chk">'+(selRifs.has(d.rif)?'✓':'')+'</div><div class="crif">'+(d.rif||'—')+'</div><div class="ctit">'+(d.comune||'—')+'</div>'+dBdg(d)+tipoBadge+'<div class="mets"><div class="met"><div class="mv">'+(d.sc_coperta?d.sc_coperta.toLocaleString('it-IT'):'—')+'</div><div class="ml">mq</div></div><div class="met"><div class="mv">'+(d.altezza?d.altezza+'m':'—')+'</div><div class="ml">altezza</div></div><div class="met"><div class="mv">'+(d.asking_rent?'€'+d.asking_rent:'—')+'</div><div class="ml">€/mq/a</div></div></div><div class="cdet"><div class="cdr">📍 <span>'+[d.comune,d.provincia,d.regione].filter(Boolean).join(' · ')+'</span></div><div class="cdr">🏗 <strong>'+(d.sviluppatore||'—')+'</strong></div><div class="cdr">📅 Consegna: <strong>'+cLbl(d)+'</strong></div></div><div class="cfoot"><div class="cref"><span>Referente</span><strong>'+(d.referente||'—')+'</strong></div><button class="bpl'+(hp?' hp':'')+'" data-r="'+d.rif+'">'+(hp?'📐':'📎')+' Plan.</button></div>';
     c.onclick=function(e){if(e.target.closest('.bpl'))return;toggleSel(d.rif)};
     c.querySelector('.bpl').onclick=function(e){e.stopPropagation();openDet(d,true)};
     grid.appendChild(c);
