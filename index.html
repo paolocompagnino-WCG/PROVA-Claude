@@ -592,10 +592,10 @@ function initF(){
   buildConsegnaList();
   const regs=[...new Set(RAW.map(d=>d.regione).filter(Boolean))].sort();
   const rS=document.getElementById('f-reg'),gR=document.getElementById('g-reg');
-  regs.forEach(r=>{[rS,gR].forEach(s=>{const o=document.createElement('option');o.value=r;o.textContent=r;s.appendChild(o)})});
+  regs.forEach(r=>{[rS,gR].filter(Boolean).forEach(s=>{const o=document.createElement('option');o.value=r;o.textContent=r;s.appendChild(o)})});
   const provs=[...new Set(RAW.map(d=>d.provincia).filter(Boolean))].sort();
   const gP=document.getElementById('g-prov');
-  provs.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;gP.appendChild(o)});
+  if(gP)provs.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;gP.appendChild(o)});
   const svs=[...new Set(RAW.map(d=>d.sviluppatore).filter(Boolean))].sort();
   const svS=document.getElementById('f-sv');
   svs.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;svS.appendChild(o)});
@@ -1067,7 +1067,13 @@ window.prepGmail=async function(){
 }
 document.querySelectorAll('.ov').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.ov.open').forEach(o=>o.classList.remove('open'))});
-initMap();initF();resetF();render();
+initMap();
+initF();
+// Reset all filters to clean state
+st.d='all';st.area='';st.reg='';st.sv='';st.scMin=null;st.scMax=null;
+st.a='all';st.q='';st.sort='sc-desc';st.pg=1;st.areaFilter=null;st.consFilter=null;
+selRL.clear();selAL.clear();selSAL.clear();selConsegna.clear();
+render();
 </script>
 </body>
 </html>
