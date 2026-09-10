@@ -154,6 +154,11 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .pmb{flex:1;overflow:auto;padding:1rem;background:#f5f5f5}
 .pmi{background:#fff;max-width:600px;margin:0 auto;border-radius:6px;padding:1.6rem}
 #planin,#cpin{display:none}
+.chk-lbl{display:flex;align-items:center;gap:.4rem;font-size:.76rem;cursor:pointer;padding:.2rem 0}
+.chk-lbl input{accent-color:var(--accent);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.chk-lbl span{flex:1}
+.chk-lbl .cnt{font-size:.65rem;color:var(--muted);margin-left:auto}
+.sec-toggle{overflow:hidden;transition:max-height .2s}
 .leaflet-popup-content{margin:11px 13px;font-family:'DM Sans',sans-serif}
 </style>
 </head>
@@ -180,13 +185,39 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
         </div>
       </div>
       <div class="sep"></div>
-      <div class="fs"><h4>Area</h4><select class="fi" id="f-area"><option value="">Tutte</option></select></div>
-      <div class="fs"><h4>Regione</h4><select class="fi" id="f-reg"><option value="">Tutte</option></select></div>
+      <div class="fs">
+        <h4 style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="toggleSection('sec-area')">Area logistica <span id="sec-area-ico">▼</span></h4>
+        <div id="sec-area" style="display:none;margin-top:.4rem">
+          <div style="font-size:.62rem;color:var(--muted);margin-bottom:.3rem;font-weight:600">REGIONE LOGISTICA</div>
+          <div id="rl-list" style="display:flex;flex-direction:column;gap:.2rem"></div>
+          <div id="al-section" style="display:none;margin-top:.5rem">
+            <div style="font-size:.62rem;color:var(--muted);margin-bottom:.3rem;font-weight:600">AREA LOGISTICA</div>
+            <div id="al-list" style="display:flex;flex-direction:column;gap:.2rem"></div>
+          </div>
+          <div id="sal-section" style="display:none;margin-top:.5rem">
+            <div style="font-size:.62rem;color:var(--muted);margin-bottom:.3rem;font-weight:600">SUB-AREA LOGISTICA</div>
+            <div id="sal-list" style="display:flex;flex-direction:column;gap:.2rem"></div>
+          </div>
+          <button onclick="clearAreaFilter()" style="margin-top:.5rem;font-size:.65rem;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:5px;padding:.2rem .5rem;cursor:pointer;width:100%">✕ Azzera area</button>
+        </div>
+      </div>
       <div class="fs"><h4>Superficie (mq)</h4>
         <div class="rrow"><span class="rlbl">Min</span><input type="number" class="fi" id="sc-min" placeholder="0" style="margin:0"></div>
         <div class="rrow"><span class="rlbl">Max</span><input type="number" class="fi" id="sc-max" placeholder="∞" style="margin:0"></div>
       </div>
-      <div class="fs"><h4>Anno consegna</h4><div class="fbg" id="ag"><button class="fb on" data-a="all">Tutti</button><button class="fb" data-a="null">Immediata / RTU</button></div></div>
+      <div class="fs">
+        <h4 style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="toggleSection('sec-cons')">Consegna <span id="sec-cons-ico">▼</span></h4>
+        <div id="sec-cons" style="display:none;margin-top:.4rem">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.76rem;cursor:pointer;padding:.25rem 0">
+            <input type="checkbox" id="chk-rtu" onchange="updateConsegnaFilter()"> Ready to Use
+          </label>
+          <div style="font-size:.62rem;color:var(--muted);margin:.4rem 0 .2rem;font-weight:600">ANNO</div>
+          <div id="anni-checks" style="display:flex;flex-direction:column;gap:.15rem"></div>
+          <div style="font-size:.62rem;color:var(--muted);margin:.4rem 0 .2rem;font-weight:600">TRIMESTRE</div>
+          <div style="display:flex;gap:.3rem;flex-wrap:wrap" id="trim-checks"></div>
+          <button onclick="clearConsegnaFilter()" style="margin-top:.5rem;font-size:.65rem;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:5px;padding:.2rem .5rem;cursor:pointer;width:100%">✕ Azzera consegna</button>
+        </div>
+      </div>
       <div class="fs"><h4>Sviluppatore</h4><select class="fi" id="f-sv"><option value="">Tutti</option></select></div>
       <button class="btn-rst" onclick="resetF()">↺ Azzera filtri</button>
     </aside>
@@ -345,7 +376,7 @@ function findReferenteEmail(sviluppatore,referente){
 let filtered=[],selRifs=new Set(),cpMap={};
 let geoF=[],drawnPoly=null,drawMode=false,drawPts=[],drawLine=null,drawPolyL=null,mapM=[];
 let curRif=null,cpTarget=null,map=null;
-let st={d:'all',area:'',reg:'',sv:'',scMin:null,scMax:null,a:'all',q:'',sort:'sc-desc',pg:1};
+let st={d:'all',area:'',reg:'',sv:'',scMin:null,scMax:null,a:'all',q:'',sort:'sc-desc',pg:1,areaFilter:null,consFilter:null};
 const PER=20;
 const pk=r=>'plan_'+r;
 const gpl=r=>{try{return localStorage.getItem(pk(r))}catch(e){return null}};
@@ -375,6 +406,137 @@ const CITIES={'Milano':[45.4654,9.1859],'Roma':[41.9028,12.4964],'Torino':[45.07
 'Cambiago':[45.5667,9.4667],'Gessate':[45.55,9.4333]
 };
 
+
+const AREA_HIERARCHY={"RLCO": {"AL_Romana": ["SAL_Roma Citta", "SAL_Roma Nord", "SAL_Roma Ovest", "SAL_Roma Sud"], "AL_Pisana": ["SAL_Pisa Metropolitana"], "AL_Aretina": ["SAL_Valdichiana"], "AL_Pistoiese": ["SAL_Pistoia metropolitana"], "AL_Livornese": ["SAL_Alta Costa Tirrenica"], "AL_Fiorentina": ["SAL_Fiorentina metropolitana"], "AL_Pratese": ["SAL_Pratese"]}, "RLNO": {"AL_Alessandrina": ["SAL_Appennino Alessandrino", "SAL_Pianura Alessandrina", "SAL_Scrivia"], "AL_Vercellese": ["SAL_Pianura Vercellese"], "AL_Torinese": ["SAL_Canavese", "SAL_Torino Metropolitana"]}, "RLM": {"AL_Mantovana Creomonese": ["SAL_Cremonese", "SAL_Montavana"], "AL_Novarese": ["SAL_Novara Metropolitana"], "AL_Pavese": ["SAL_Lomellina", "SAL_Oltrepo"], "AL_Milanese": ["SAL_Milanese-Citta", "SAL_Milanese-Est", "SAL_Milanese-Nord", "SAL_Milanese-Ovest", "SAL_Milanese-Sud"], "AL_Bergamasca": ["SAL_Pianura Bergamasca"], "AL_Varesina": ["SAL_MXP"], "AL_Comasca": ["SAL_Como Metropolitana"], "AL_Bresciana": ["SAL_BREBEMI-A21", "SAL_Brescia Metropolitana", "SAL_Franciacorta"], "AL_Lodigiana": ["SAL_Casalese"], "AL_Piacentina": ["SAL_Basso Piacentino", "SAL_Piacentina-Citta"], "ANL": ["SALN"]}, "RLNE": {"AL_Padovana": ["SAL_Alto Padovano", "SAL_Basso Padovano", "SAL_Padova Metropolitana"], "AL_Veronese": ["SAL_Bassa Pianura Veronese", "SAL_Lessino", "SAL_Verona Metropolitana"], "AL_Trevigiana": ["SAL_Trevigiana Metropolitana"], "AL_Veneziana": ["SAL_Venezia Centrale", "SAL_Venezia Metropolitana"], "AL_Friulana": ["SAL_Goriziana", "SAL_Pianura Udinese", "SAL_Podenonese Metropolitano"], "ANL": ["SALN"]}, "RLCE": {"AL_Bolognese": ["SAL_Imolese", "SAL_Pianura Bolognese"], "AL_Reggiana": ["SAL_Gustallese", "SAL_Reggio Emilia Metropolitana"], "AL_Parmigiana": ["SAL_Pianura Parmense"], "AL_Delta del Po": ["SAL_Costa Adriatica Emiliana", "SAL_Ferrarese", "SAL_Foreste Casentinesi"]}, "RLSE": {"AL_Pugliese": ["SAL_Puglia-Costa"]}, "RLSO": {"AL_Campana": ["SAL_Napoletana"]}, "RLSA": {"AL_Macomer": ["SAL_Macomer"], "AL_Sassarese": ["SAL-Sassarese"]}};
+const RL_LABELS={"RLNO": "Nord Ovest", "RLNE": "Nord Est", "RLM": "Medio Nord", "RLCE": "Centro Est", "RLCO": "Centro Ovest", "RLSO": "Sud Ovest", "RLSE": "Sud Est", "RLSA": "Sud e Isole"};
+let selRL=new Set(),selAL=new Set(),selSAL=new Set();
+let selAnni=new Set(),selTrim=new Set(),selRTU=false;
+
+function toggleSection(id){
+  const el=document.getElementById(id);
+  const ico=document.getElementById(id+'-ico');
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(ico)ico.textContent=open?'▲':'▼';
+}
+
+function buildRLList(){
+  const c=document.getElementById('rl-list');c.innerHTML='';
+  Object.keys(AREA_HIERARCHY).sort().forEach(rl=>{
+    const lbl=RL_LABELS[rl]||rl;
+    const cnt=RAW.filter(d=>d.rl===rl).length;
+    const div=document.createElement('label');div.className='chk-lbl';
+    div.innerHTML='<input type="checkbox" value="'+rl+'"><span>'+lbl+'</span><span class="cnt">'+cnt+'</span>';
+    div.querySelector('input').checked=selRL.has(rl);
+    div.querySelector('input').addEventListener('change',function(){
+      if(this.checked)selRL.add(rl);else{selRL.delete(rl);selAL.clear();selSAL.clear()}
+      updateALList();updateConsegnaFilter();applyAreaFilter();
+    });
+    c.appendChild(div);
+  });
+}
+
+function updateALList(){
+  const alSec=document.getElementById('al-section');
+  const c=document.getElementById('al-list');c.innerHTML='';
+  if(selRL.size===0){alSec.style.display='none';return}
+  alSec.style.display='';
+  const allALs=new Set();
+  selRL.forEach(rl=>Object.keys(AREA_HIERARCHY[rl]||{}).forEach(al=>allALs.add(al)));
+  [...allALs].sort().forEach(al=>{
+    const lbl=al.replace('AL_','');
+    const cnt=RAW.filter(d=>d.al===al&&selRL.has(d.rl)).length;
+    const div=document.createElement('label');div.className='chk-lbl';
+    div.innerHTML='<input type="checkbox" value="'+al+'"><span>'+lbl+'</span><span class="cnt">'+cnt+'</span>';
+    div.querySelector('input').checked=selAL.has(al);
+    div.querySelector('input').addEventListener('change',function(){
+      if(this.checked)selAL.add(al);else{selAL.delete(al);selSAL.clear()}
+      updateSALList();applyAreaFilter();
+    });
+    c.appendChild(div);
+  });
+  updateSALList();
+}
+
+function updateSALList(){
+  const salSec=document.getElementById('sal-section');
+  const c=document.getElementById('sal-list');c.innerHTML='';
+  if(selAL.size===0){salSec.style.display='none';return}
+  salSec.style.display='';
+  const allSALs=new Set();
+  selAL.forEach(al=>{
+    selRL.forEach(rl=>{
+      const sals=(AREA_HIERARCHY[rl]||{})[al]||[];
+      sals.forEach(s=>allSALs.add(s));
+    });
+  });
+  [...allSALs].filter(s=>s&&s!=='SALN').sort().forEach(sal=>{
+    const lbl=sal.replace('SAL_','');
+    const cnt=RAW.filter(d=>d.sal===sal&&selAL.has(d.al)).length;
+    const div=document.createElement('label');div.className='chk-lbl';
+    div.innerHTML='<input type="checkbox" value="'+sal+'"><span>'+lbl+'</span><span class="cnt">'+cnt+'</span>';
+    div.querySelector('input').checked=selSAL.has(sal);
+    div.querySelector('input').addEventListener('change',function(){
+      if(this.checked)selSAL.add(sal);else selSAL.delete(sal);
+      applyAreaFilter();
+    });
+    c.appendChild(div);
+  });
+}
+
+function applyAreaFilter(){
+  st.areaFilter={rl:selRL,al:selAL,sal:selSAL};st.pg=1;render();
+}
+
+window.clearAreaFilter=function(){
+  selRL.clear();selAL.clear();selSAL.clear();
+  st.areaFilter=null;
+  buildRLList();updateALList();
+  document.getElementById('al-section').style.display='none';
+  document.getElementById('sal-section').style.display='none';
+  st.pg=1;render();
+};
+
+function buildConsegnaList(){
+  const anni=[...new Set(RAW.map(d=>d.consegna_anno).filter(Boolean))].sort();
+  const ac=document.getElementById('anni-checks');ac.innerHTML='';
+  anni.forEach(a=>{
+    const cnt=RAW.filter(d=>d.consegna_anno===a).length;
+    const div=document.createElement('label');div.className='chk-lbl';
+    div.innerHTML='<input type="checkbox" value="'+a+'"><span>'+a+'</span><span class="cnt">'+cnt+'</span>';
+    div.querySelector('input').checked=selAnni.has(a);
+    div.querySelector('input').addEventListener('change',function(){
+      if(this.checked)selAnni.add(parseInt(this.value));else selAnni.delete(parseInt(this.value));
+      updateConsegnaFilter();
+    });
+    ac.appendChild(div);
+  });
+  const trims=['Q1','Q2','Q3','Q4'];
+  const tc=document.getElementById('trim-checks');tc.innerHTML='';
+  trims.forEach(q=>{
+    const div=document.createElement('label');div.className='chk-lbl';div.style.flex='0 0 calc(50% - .15rem)';
+    div.innerHTML='<input type="checkbox" value="'+q+'"><span>'+q+'</span>';
+    div.querySelector('input').checked=selTrim.has(q);
+    div.querySelector('input').addEventListener('change',function(){
+      if(this.checked)selTrim.add(this.value);else selTrim.delete(this.value);
+      updateConsegnaFilter();
+    });
+    tc.appendChild(div);
+  });
+}
+
+window.updateConsegnaFilter=function(){
+  selRTU=document.getElementById('chk-rtu').checked;
+  st.consFilter={anni:selAnni,trim:selTrim,rtu:selRTU};st.pg=1;render();
+};
+
+window.clearConsegnaFilter=function(){
+  selAnni.clear();selTrim.clear();selRTU=false;
+  document.getElementById('chk-rtu').checked=false;
+  buildConsegnaList();
+  st.consFilter=null;st.pg=1;render();
+};
+
 function initMap(){map=L.map('map',{zoomControl:true}).setView([45.2,10.5],7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:18}).addTo(map);map.on('click',onMC);map.on('dblclick',onMD)}
 const mkI=c=>{const col={green:'#2D5C42',red:'#C0392B',orange:'#D68A00'}[c]||'#2D5C42';return L.divIcon({html:'<div style="width:9px;height:9px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>',iconSize:[9,9],iconAnchor:[4.5,4.5],className:''})};
 const mkIS=()=>L.divIcon({html:'<div style="width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid #1A3A2A;box-shadow:0 0 0 2px #1A3A2A,0 2px 5px rgba(0,0,0,.25)"></div>',iconSize:[13,13],iconAnchor:[6.5,6.5],className:''});
@@ -401,11 +563,9 @@ window.applyGeo=function(){
   document.getElementById('geoov').classList.remove('open');renderGT();render();
 };
 function initF(){
-  // Area filter
-  const areas=[...new Set(RAW.map(d=>d.area).filter(Boolean))].sort();
-  const aS=document.getElementById('f-area');
-  if(aS){areas.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;aS.appendChild(o)});
-  aS.onchange=function(){st.area=this.value;st.pg=1;render()};}
+  // Area filter - hierarchical
+  buildRLList();
+  buildConsegnaList();
   const regs=[...new Set(RAW.map(d=>d.regione).filter(Boolean))].sort();
   const rS=document.getElementById('f-reg'),gR=document.getElementById('g-reg');
   regs.forEach(r=>{[rS,gR].forEach(s=>{const o=document.createElement('option');o.value=r;o.textContent=r;s.appendChild(o)})});
@@ -433,16 +593,37 @@ function initF(){
   document.getElementById('cpin').onchange=function(e){const f=e.target.files[0];if(!f||!cpTarget)return;const r=new FileReader();r.onload=ev=>{spl(cpTarget,ev.target.result);cpMap[cpTarget]=ev.target.result;const b=document.querySelector('.bip[data-r="'+cpTarget+'"]');if(b){b.textContent='📐 Plan.';b.classList.add('hp')}render()};r.readAsDataURL(f);e.target.value=''};
 }
 window.setAnno=function(b,v){document.querySelectorAll('[data-a]').forEach(x=>x.classList.remove('on'));b.classList.add('on');st.a=v;st.pg=1;render()};
-window.resetF=function(){st={d:'all',reg:'',sv:'',scMin:null,scMax:null,a:'all',q:'',sort:'sc-desc',pg:1};['search','f-area','f-reg','f-sv','sc-min','sc-max'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});document.getElementById('sort').value='sc-desc';document.querySelectorAll('[data-d]').forEach(b=>b.classList.toggle('on',b.dataset.d==='all'));document.querySelectorAll('[data-a]').forEach(b=>b.classList.toggle('on',b.dataset.a==='all'));render()};
+window.resetF=function(){st={d:'all',reg:'',sv:'',scMin:null,scMax:null,a:'all',q:'',sort:'sc-desc',pg:1};['search','f-reg','f-sv','sc-min','sc-max'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  clearAreaFilter();clearConsegnaFilter();document.getElementById('sort').value='sc-desc';document.querySelectorAll('[data-d]').forEach(b=>b.classList.toggle('on',b.dataset.d==='all'));document.querySelectorAll('[data-a]').forEach(b=>b.classList.toggle('on',b.dataset.a==='all'));render()};
 function applyF(){
   let d=[...RAW];
   if(st.d!=='all'){const w=st.d==='true'?true:st.d==='false'?false:null;d=d.filter(x=>x.disponibile===w)}
-  if(st.area)d=d.filter(x=>x.area===st.area);
+  // Area filter
+  if(st.areaFilter){
+    const {rl,al,sal}=st.areaFilter;
+    if(sal.size>0)d=d.filter(x=>sal.has(x.sal));
+    else if(al.size>0)d=d.filter(x=>al.has(x.al));
+    else if(rl.size>0)d=d.filter(x=>rl.has(x.rl));
+  }
   if(st.reg)d=d.filter(x=>x.regione===st.reg);
   if(st.sv)d=d.filter(x=>x.sviluppatore===st.sv);
   if(st.scMin!==null)d=d.filter(x=>x.sc_coperta&&x.sc_coperta>=st.scMin);
   if(st.scMax!==null)d=d.filter(x=>x.sc_coperta&&x.sc_coperta<=st.scMax);
-  if(st.a!=='all'){if(st.a==='null')d=d.filter(x=>!x.consegna_anno);else d=d.filter(x=>x.consegna_anno===parseInt(st.a))}
+  // Consegna filter
+  if(st.consFilter){
+    const {anni,trim,rtu}=st.consFilter;
+    const hasFilter=anni.size>0||trim.size>0||rtu;
+    if(hasFilter){
+      d=d.filter(x=>{
+        const isRTU=x.consegna_label&&x.consegna_label.toLowerCase().startsWith('ready');
+        if(rtu&&isRTU)return true;
+        if(isRTU)return false;
+        const okAnno=anni.size===0||anni.has(x.consegna_anno);
+        const okTrim=trim.size===0||trim.has(x.consegna_trimestre);
+        return okAnno&&okTrim;
+      });
+    }
+  } else if(st.a!=='all'){if(st.a==='null')d=d.filter(x=>!x.consegna_anno);else d=d.filter(x=>x.consegna_anno===parseInt(st.a))}
   if(st.q){const q=st.q.toLowerCase();d=d.filter(x=>(x.comune&&x.comune.toLowerCase().includes(q))||(x.provincia&&x.provincia.toLowerCase().includes(q))||(x.sviluppatore&&x.sviluppatore.toLowerCase().includes(q))||(x.rif&&x.rif.toLowerCase().includes(q))||(x.referente&&x.referente.toLowerCase().includes(q)))}
   if(geoF.length)d=d.filter(x=>geoF.every(f=>f.fn(x)));
   d.sort((a,b)=>{if(st.sort==='sc-desc')return(b.sc_coperta||0)-(a.sc_coperta||0);if(st.sort==='sc-asc')return(a.sc_coperta||0)-(b.sc_coperta||0);if(st.sort==='rent-asc')return(a.asking_rent||999)-(b.asking_rent||999);if(st.sort==='rent-desc')return(b.asking_rent||0)-(a.asking_rent||0);return 0});
