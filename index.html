@@ -168,7 +168,7 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
     <div class="logo">World Capital <span>· Logistica</span></div>
     <div class="hr">
       <div class="hpill">Totale <strong id="st-t">—</strong></div>
-      <div class="hpill">Disponibili <strong id="st-a">—</strong></div>
+      
       <button class="btn-comp" onclick="exportExcel()" style="margin-right:.5rem;background:#1A3A2A;color:#fff;border:1.5px solid rgba(255,255,255,.25)">📊 Esporta Excel</button>
       <button class="btn-comp" onclick="openCompose()">✉ Componi mail <span class="sb" id="sb" style="display:none">0</span></button>
     </div>
@@ -176,15 +176,6 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
   <div class="layout">
     <aside>
       <div class="fs"><h4>Ricerca</h4><input type="text" class="fi" id="search" placeholder="Comune, sviluppatore, rif…"></div>
-      <div class="fs"><h4>Disponibilità</h4>
-        <div class="fbg">
-          <button class="fb on" data-d="all">Tutti <span class="n" id="c-all">0</span></button>
-          <button class="fb" data-d="true"><span style="color:#2D5C42">●</span> Disponibili <span class="n" id="c-av">0</span></button>
-          <button class="fb" data-d="false"><span style="color:#C0392B">●</span> Non disponibili <span class="n" id="c-na">0</span></button>
-          <button class="fb" data-d="null"><span style="color:#D68A00">●</span> In valutazione <span class="n" id="c-uc">0</span></button>
-        </div>
-      </div>
-      <div class="sep"></div>
       <div class="fs">
         <h4 style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="toggleSection('sec-area')">Area logistica <span id="sec-area-ico">▼</span></h4>
         <div id="sec-area" style="display:none;margin-top:.4rem">
@@ -609,11 +600,8 @@ function initF(){
   const svS=document.getElementById('f-sv');
   svs.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;svS.appendChild(o)});
   // Anni handled by buildConsegnaList()
-  const av=RAW.filter(d=>d.disponibile===true).length,na=RAW.filter(d=>d.disponibile===false).length,uc=RAW.filter(d=>d.disponibile===null).length;
-  document.getElementById('st-t').textContent=RAW.length;document.getElementById('st-a').textContent=av;
-  document.getElementById('c-all').textContent=RAW.length;document.getElementById('c-av').textContent=av;
-  document.getElementById('c-na').textContent=na;document.getElementById('c-uc').textContent=uc;
-  document.querySelectorAll('[data-d]').forEach(b=>b.onclick=function(){document.querySelectorAll('[data-d]').forEach(x=>x.classList.remove('on'));this.classList.add('on');st.d=this.dataset.d;st.pg=1;render()});
+  document.getElementById('st-t').textContent=RAW.length;document.getElementById('st-a').textContent=RAW.length;
+
   document.querySelectorAll('[data-a]').forEach(b=>{if(b.dataset.a==='all'||b.dataset.a==='null')b.onclick=function(){setAnno(this,this.dataset.a)}});
   document.getElementById('f-reg').onchange=function(){st.reg=this.value;st.pg=1;render()};
   document.getElementById('f-sv').onchange=function(){st.sv=this.value;st.pg=1;render()};
@@ -628,13 +616,11 @@ window.resetF=function(){
   st={d:'all',area:'',reg:'',sv:'',scMin:null,scMax:null,a:'all',q:'',sort:'sc-desc',pg:1,areaFilter:null,consFilter:null};
   ['search','f-reg','f-sv','sc-min','sc-max'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
   const sortEl=document.getElementById('sort');if(sortEl)sortEl.value='sc-desc';
-  document.querySelectorAll('[data-d]').forEach(b=>b.classList.toggle('on',b.dataset.d==='all'));
   selRL.clear();selAL.clear();selSAL.clear();selConsegna.clear();
   buildRLList();buildConsegnaList();
 };
 function applyF(){
   let d=[...RAW];
-  if(st.d!=='all'){const w=st.d==='true'?true:st.d==='false'?false:null;d=d.filter(x=>x.disponibile===w)}
   // Area filter
   if(st.areaFilter){
     const {rl,al,sal}=st.areaFilter;
