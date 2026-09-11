@@ -801,29 +801,40 @@ window.showPrev=function(){document.getElementById('pmi').innerHTML=buildHtml();
 
 window.exportExcel=function(){
   if(!selRifs.size){alert('Seleziona almeno un immobile cliccando sulle cards.');return}
-  const rows=[];
-  rows.push(['Rif','Comune','Provincia','Regione','Sviluppatore','Referente','SC Coperta (mq)','Altezza (m)','Asking Rent (€/mq/anno)','Consegna','Frazionabile','Mandato','Disponibilità','Note']);
+  const headers=['Codice O.O','Città','Posizione/Link','Mq Interni ed Esterni','Baie','Altezza Utile (m)','Asking Rent (€/mq/anno)','Disponibilità','Planimetrie','Sviluppatore','Consultant'];
+  const rows=[headers];
   selRifs.forEach(rif=>{
     const d=RAW.find(x=>x.rif===rif);if(!d)return;
-    const dispLbl=d.disponibile===true?'Disponibile':d.disponibile===false?'Non disponibile':'In valutazione';
+    const dispLabel=d.consegna_label?d.consegna_label+(d.consegna_anno?' '+((d.consegna_trimestre||'')+' '+d.consegna_anno).trim():''):'';
+    const hasPlan=!!gpl(rif)?'Sì':'';
     rows.push([
-      d.rif||'',d.comune||'',d.provincia||'',d.regione||'',d.sviluppatore||'',d.referente||'',
-      d.sc_coperta||'',d.altezza||'',d.asking_rent||'',cLbl(d),d.frazionabile||'',d.mandato||'',dispLbl,d.note||''
+      d.rif||'',
+      d.comune||'',
+      d.posizione||'',
+      d.sc_coperta||'',
+      '',
+      d.altezza||'',
+      d.asking_rent||'',
+      dispLabel,
+      hasPlan,
+      d.sviluppatore||'',
+      ''
     ]);
   });
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:11},{wch:18},{wch:14},{wch:14},{wch:20},{wch:18},{wch:14},{wch:10},{wch:16},{wch:14},{wch:22},{wch:14},{wch:14},{wch:30}];
-  // Header bold
+  // Column widths
+  ws['!cols']=[{wch:14},{wch:18},{wch:20},{wch:18},{wch:8},{wch:14},{wch:18},{wch:20},{wch:12},{wch:22},{wch:14}];
+  // Header style
   const range=XLSX.utils.decode_range(ws['!ref']);
-  for(let c=range.s.c;c<=range.e.c;c++){
-    const addr=XLSX.utils.encode_cell({r:0,c:c});
-    if(ws[addr])ws[addr].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1A3A2A'}}};
+  for(let col=range.s.c;col<=range.e.c;col++){
+    const addr=XLSX.utils.encode_cell({r:0,c:col});
+    if(ws[addr])ws[addr].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1A3A2A'}},alignment:{horizontal:'center'}};
   }
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Immobili selezionati');
-  const fname='WCG_immobili_selezionati_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  XLSX.utils.book_append_sheet(wb,ws,'Selezione immobili');
+  const fname='WCG_selezione_'+new Date().toISOString().slice(0,10)+'.xlsx';
   XLSX.writeFile(wb,fname);
-};
+}
 
 
 // ── CALENDAR SLOT PICKER ──
